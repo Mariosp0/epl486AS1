@@ -14,11 +14,12 @@ For every version:
 
 Outputs: results/size.csv, results/metrics.csv, results/kselection.csv,
          results/stability.csv, results/clusters/<v>_<arch>.rsf
-Usage: python3 scripts/recover.py [version ...]
+Usage: [JOBS=n] python3 scripts/recover.py [version ...]
 """
 import os
 import subprocess
 import sys
+from concurrent.futures import ProcessPoolExecutor
 from collections import defaultdict
 
 import numpy as np
@@ -106,66 +107,77 @@ def run_kmeans(nodes, edges, version, arch, ksel_rows):
     return {n: f"km{l}" for n, l in zip(nodes, labels)}, k
 
 
+def analyse(v):
+    """Recover and evaluate all architectures of one version."""
+    size_rows, metric_rows, ksel_rows, noise_rows = [], [], [], []
+    nodes, dep, raw = load_dependencies(v)
+    noise, sig, _, fallback = load_noise(v)
+    edges = set(dep)
+    connected = sorted({c for e in edges for c in e})
+    noise &= set(connected)
+    e_nn = {(s, d) for s, d in edges if s not in noise and d not in noise}
+    nn_nodes = sorted({c for e in e_nn for c in e})
+
+    size_rows.append({
+        "version": v,
+        "classes": len(nodes),
+        "packages": len({package(n) for n in nodes}),
+        "class_dependencies": len(edges),
+        "raw_dependency_rows": raw,
+        "connected_classes": len(connected),
+        "isolated_classes": len(nodes) - len(connected),
+        "noise_classes": len(noise),
+        "noise_pct": round(100 * len(noise) / len(connected), 2),
+        "noise_fallback": fallback,
+        "classes_without_noise": len(nn_nodes),
+        "dependencies_without_noise": len(e_nn),
+    })
+    for c in sorted(noise, key=lambda c: -sig.get(c, 0)):
+        noise_rows.append({"version": v, "class": c, "sig": sig.get(c)})
+
+    full_rsf = os.path.join(DATA, "rsf", f"{v}_full.rsf")
+    nn_rsf = os.path.join(DATA, "rsf", f"{v}_nonoise.rsf")
+    write_rsf(full_rsf, edges)
+    write_rsf(nn_rsf, e_nn)
+    cdir = os.path.join(RESULTS, "clusters")
+    res = {
+        "A1": run_acdc(full_rsf, os.path.join(cdir, f"{v}_A1.rsf")),
+        "A2": run_acdc(nn_rsf, os.path.join(cdir, f"{v}_A2.rsf")),
+    }
+    res["A3"], k3 = run_kmeans(connected, edges, v, "A3", ksel_rows)
+    res["A4"], k4 = run_kmeans(nn_nodes, e_nn, v, "A4", ksel_rows)
+    res["PKG"] = {c: package(c) for c in connected}
+    res["PKG_nonoise"] = {c: package(c) for c in nn_nodes}
+    for a in ("A3", "A4", "PKG", "PKG_nonoise"):
+        write_clusters(os.path.join(cdir, f"{v}_{a}.rsf"), res[a])
+    for a, cl in res.items():
+        graph = e_nn if a in ("A2", "A4", "PKG_nonoise") else edges
+        row = {"version": v, "arch": a}
+        row.update(evaluate(cl, graph))
+        ref = res["PKG" if a in ("A1", "A3") else "PKG_nonoise"]
+        common = sorted(set(cl) & set(ref))
+        row["ari_vs_packages"] = round(adjusted_rand_score(
+            [ref[c] for c in common], [cl[c] for c in common]), 4)
+        metric_rows.append(row)
+    print(v, {m["arch"]: m["turbo_mq_norm"] for m in metric_rows},
+          f"k3={k3} k4={k4} noise={len(noise)}", flush=True)
+    return v, res, size_rows, metric_rows, ksel_rows, noise_rows
+
+
 def main():
     vs = sys.argv[1:] or versions()
     os.makedirs(os.path.join(DATA, "rsf"), exist_ok=True)
     os.makedirs(os.path.join(RESULTS, "clusters"), exist_ok=True)
     size_rows, metric_rows, ksel_rows, noise_rows = [], [], [], []
     archs = {}
-    for v in vs:
-        nodes, dep, raw = load_dependencies(v)
-        noise, sig, _, fallback = load_noise(v)
-        edges = set(dep)
-        connected = sorted({c for e in edges for c in e})
-        noise &= set(connected)
-        e_nn = {(s, d) for s, d in edges if s not in noise and d not in noise}
-        nn_nodes = sorted({c for e in e_nn for c in e})
-
-        size_rows.append({
-            "version": v,
-            "classes": len(nodes),
-            "packages": len({package(n) for n in nodes}),
-            "class_dependencies": len(edges),
-            "raw_dependency_rows": raw,
-            "connected_classes": len(connected),
-            "isolated_classes": len(nodes) - len(connected),
-            "noise_classes": len(noise),
-            "noise_pct": round(100 * len(noise) / len(connected), 2),
-            "noise_fallback": fallback,
-            "classes_without_noise": len(nn_nodes),
-            "dependencies_without_noise": len(e_nn),
-        })
-        for c in sorted(noise, key=lambda c: -sig.get(c, 0)):
-            noise_rows.append({"version": v, "class": c, "sig": sig.get(c)})
-
-        full_rsf = os.path.join(DATA, "rsf", f"{v}_full.rsf")
-        nn_rsf = os.path.join(DATA, "rsf", f"{v}_nonoise.rsf")
-        write_rsf(full_rsf, edges)
-        write_rsf(nn_rsf, e_nn)
-        cdir = os.path.join(RESULTS, "clusters")
-        res = {
-            "A1": run_acdc(full_rsf, os.path.join(cdir, f"{v}_A1.rsf")),
-            "A2": run_acdc(nn_rsf, os.path.join(cdir, f"{v}_A2.rsf")),
-        }
-        res["A3"], k3 = run_kmeans(connected, edges, v, "A3", ksel_rows)
-        res["A4"], k4 = run_kmeans(nn_nodes, e_nn, v, "A4", ksel_rows)
-        res["PKG"] = {c: package(c) for c in connected}
-        res["PKG_nonoise"] = {c: package(c) for c in nn_nodes}
-        for a in ("A3", "A4", "PKG", "PKG_nonoise"):
-            write_clusters(os.path.join(cdir, f"{v}_{a}.rsf"), res[a])
-        for a, cl in res.items():
-            graph = e_nn if a in ("A2", "A4", "PKG_nonoise") else edges
-            row = {"version": v, "arch": a}
-            row.update(evaluate(cl, graph))
-            ref = res["PKG" if a in ("A1", "A3") else "PKG_nonoise"]
-            common = sorted(set(cl) & set(ref))
-            row["ari_vs_packages"] = round(adjusted_rand_score(
-                [ref[c] for c in common], [cl[c] for c in common]), 4)
-            metric_rows.append(row)
-        archs[v] = res
-        print(v, {a: r["turbo_mq_norm"] for a, r in
-                  [(m["arch"], m) for m in metric_rows if m["version"] == v]},
-              f"k3={k3} k4={k4} noise={len(noise)}", flush=True)
+    jobs = int(os.environ.get("JOBS", os.cpu_count() or 1))
+    with ProcessPoolExecutor(jobs) as ex:
+        for v, res, sz, mt, ks, nz in ex.map(analyse, vs):  # keeps version order
+            archs[v] = res
+            size_rows += sz
+            metric_rows += mt
+            ksel_rows += ks
+            noise_rows += nz
 
     stab_rows = []
     for prev, cur in zip(vs, vs[1:]):
