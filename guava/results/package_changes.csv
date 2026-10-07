@@ -1,0 +1,13 @@
+from,to,packages,added,removed,classes_added,classes_removed,added_packages,removed_packages
+10.0,12.0,13,3,0,63,9,com.google.common.hash com.google.common.math com.google.common.reflect,
+12.0,14.0,13,0,0,58,23,,
+14.0,16.0,17,4,0,50,14,com.google.common.escape com.google.common.html com.google.common.xml com.google.thirdparty.publicsuffix,
+16.0,18.0,17,0,0,8,4,,
+18.0,20.0,18,1,0,76,16,com.google.common.graph,
+20.0,22.0,18,0,0,20,5,,
+22.0,24.0,18,0,0,24,4,,
+24.0,26.0,18,0,0,7,0,,
+26.0,28.0,18,0,0,2,4,,
+28.0,30.0,18,0,0,19,5,,
+30.0,32.0.0,18,0,0,6,1,,
+32.0.0,33.7.0,18,0,0,14,18,,

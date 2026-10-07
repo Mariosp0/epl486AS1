@@ -4,8 +4,9 @@
 # Usage: [JNODE_JAR=tools/JNode-fast.jar] [OUT=data/noise] scripts/run_jnode_pool.sh [workers]
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
-JAR="${JNODE_JAR:-tools/JNode-fast-p4.jar}"
+TOOLS="$ROOT/tools"
+cd "$ROOT/${PROJECT:-.}"   # PROJECT=guava -> work inside guava/
+JAR="${JNODE_JAR:-$TOOLS/JNode-fast-p4.jar}"
 OUT="${OUT:-data/noise}"
 LOCKS="locks/$(basename "$OUT")"
 mkdir -p "$OUT" logs "$LOCKS"

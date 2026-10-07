@@ -1,0 +1,14 @@
+version,maven_version,date,packages,class_files,top_level_classes,jar
+10.0,10.0,2011-09-27,10,1157,317,data/workspace/10.0/bin/guava-10.0.jar
+12.0,12.0,2012-04-30,13,1332,373,data/workspace/12.0/bin/guava-12.0.jar
+14.0,14.0,2013-02-25,13,1584,412,data/workspace/14.0/bin/guava-14.0.jar
+16.0,16.0,2014-01-17,17,1663,448,data/workspace/16.0/bin/guava-16.0.jar
+18.0,18.0,2014-08-25,17,1677,454,data/workspace/18.0/bin/guava-18.0.jar
+20.0,20.0,2016-10-28,18,1799,514,data/workspace/20.0/bin/guava-20.0.jar
+22.0,22.0,2017-05-22,18,1850,529,data/workspace/22.0/bin/guava-22.0.jar
+24.0,24.0-jre,2018-02-01,18,1922,549,data/workspace/24.0/bin/guava-24.0.jar
+26.0,26.0-jre,2018-08-01,18,1936,556,data/workspace/26.0/bin/guava-26.0.jar
+28.0,28.0-jre,2019-06-11,18,1932,554,data/workspace/28.0/bin/guava-28.0.jar
+30.0,30.0-jre,2020-10-16,18,2010,569,data/workspace/30.0/bin/guava-30.0.jar
+32.0.0,32.0.0-jre,2023-05-26,18,1997,607,data/workspace/32.0.0/bin/guava-32.0.0.jar
+33.7.0,33.7.0-jre,2026-08-17,18,1948,594,data/workspace/33.7.0/bin/guava-33.7.0.jar

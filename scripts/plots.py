@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from common import RESULTS  # noqa: E402
+from common import CONFIG, DATA, RESULTS  # noqa: E402
 
 FIG = os.path.join(RESULTS, "figures")
 # Validated categorical palette (fixed order) + neutral for the reference.
@@ -18,7 +18,7 @@ LABELS = {"A1": "A1 ACDC (full)", "A2": "A2 ACDC (no noise)",
           "A3": "A3 k-means (full)", "A4": "A4 k-means (no noise)",
           "PKG": "Packages (reference)"}
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
-GA = {"0.8.0", "1.0.0", "1.1.0", "2.0.0"}
+GA = set(CONFIG.get("highlight_versions", []))
 
 plt.rcParams.update({
     "font.size": 9, "axes.edgecolor": MUTED, "axes.labelcolor": INK,
@@ -61,7 +61,7 @@ def main():
     vs = [r["version"] for r in size]
     x = range(len(vs))
 
-    with open(os.path.join(RESULTS, "..", "data", "versions.csv")) as f:
+    with open(os.path.join(DATA, "versions.csv")) as f:
         vrows = {r["version"]: r for r in csv.DictReader(f)}
     fig, ax = plt.subplots(figsize=(7.5, 3.4))
     line(ax, x, [int(vrows[v]["class_files"]) for v in vs], "A2",
@@ -72,16 +72,20 @@ def main():
     ax.legend(fontsize=7, loc="lower right")
     save(fig, "size_classes.png")
 
-    fig, axs = plt.subplots(1, 2, figsize=(9, 3.2))
+    with open(os.path.join(DATA, "versions.csv")) as f:
+        vinfo = {r["version"]: r for r in csv.DictReader(f)}
+    has_modules = "modules_with_code" in next(iter(vinfo.values()))
+    fig, axs = plt.subplots(1, 2 if has_modules else 1, figsize=(9 if has_modules else 5, 3.2),
+                            squeeze=False)
+    axs = axs[0]
     line(axs[0], x, [int(r["packages"]) for r in size], "A1", "Packages")
     setup(axs[0], vs, "packages", "Packages per version")
-    with open(os.path.join(RESULTS, "..", "data", "versions.csv")) as f:
-        mods = {r["version"]: int(r["modules_with_code"]) for r in csv.DictReader(f)}
-    line(axs[1], x, [mods[v] for v in vs], "A2", "Maven modules")
-    setup(axs[1], vs, "modules", "Maven modules with code per version")
+    if has_modules:
+        line(axs[1], x, [int(vinfo[v]["modules_with_code"]) for v in vs], "A2", "Maven modules")
+        setup(axs[1], vs, "modules", "Maven modules with code per version")
     for a in axs:
         a.set_ylim(0)
-    save(fig, "size_packages_modules.png")
+    save(fig, "size_packages_modules.png" if has_modules else "size_packages.png")
 
     fig, axs = plt.subplots(1, 2, figsize=(9, 3.2))
     line(axs[0], x, [int(r["class_dependencies"]) for r in size], "A1", "dependencies")

@@ -17,11 +17,11 @@ from collections import Counter
 
 from sklearn.metrics import adjusted_rand_score
 
-from common import (RESULTS, ROOT, load_dependencies, load_noise, package,
-                    versions, write_csv)
+from common import (PREFIX, PROJECT_DIR, RESULTS, load_dependencies, load_noise,
+                    package, versions, write_csv)
 from metrics import evaluate
 
-PFX = "org.springframework.ai."
+PFX = PREFIX
 
 
 def read_clusters(path):
@@ -34,7 +34,7 @@ def read_clusters(path):
 
 
 def main():
-    spec = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "ai", "ai_architecture_P3.json")
+    spec = sys.argv[1] if len(sys.argv) > 1 else os.path.join(PROJECT_DIR, "ai", "ai_architecture_P3.json")
     cfg = json.load(open(spec))
     v = cfg.get("version", versions()[-1])
     rules = [(name, re.compile(rx)) for name, rx in cfg["rules"]]

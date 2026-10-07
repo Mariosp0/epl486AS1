@@ -12,33 +12,31 @@ import os
 import sys
 from collections import Counter, defaultdict
 
-from common import DATA, ROOT, load_dependencies, package, versions
-
-PFX = "org.springframework.ai."
-
-
-def short(p):
-    return p[len(PFX):] if p.startswith(PFX) else p
+from common import (DATA, NAME, PREFIX, PROJECT_DIR, load_dependencies, package,
+                    short, versions)
 
 
 def main():
     v = sys.argv[1] if len(sys.argv) > 1 else versions()[-1]
-    out = os.path.join(ROOT, "ai", "inputs")
+    out = os.path.join(PROJECT_DIR, "ai", "inputs")
     os.makedirs(out, exist_ok=True)
     nodes, dep, _ = load_dependencies(v)
 
-    with open(os.path.join(DATA, "modules", f"{v}.csv")) as f:
-        mods = list(csv.DictReader(f))
-    with open(os.path.join(out, "modules.md"), "w") as f:
-        f.write(f"# Spring AI {v} - Maven modules (class files per module)\n\n")
-        for m in mods:
-            f.write(f"- {m['module']} ({m['class_files']})\n")
+    mods = []
+    mpath = os.path.join(DATA, "modules", f"{v}.csv")
+    if os.path.exists(mpath):  # multi-module systems only
+        with open(mpath) as f:
+            mods = list(csv.DictReader(f))
+        with open(os.path.join(out, "modules.md"), "w") as f:
+            f.write(f"# {NAME} {v} - Maven modules (class files per module)\n\n")
+            for m in mods:
+                f.write(f"- {m['module']} ({m['class_files']})\n")
 
     by_pkg = defaultdict(list)
     for n in nodes:
         by_pkg[package(n)].append(n.rsplit(".", 1)[1])
     with open(os.path.join(out, "packages.md"), "w") as f:
-        f.write(f"# Spring AI {v} - packages (prefix org.springframework.ai. omitted)\n\n")
+        f.write(f"# {NAME} {v} - packages (prefix {PREFIX} omitted)\n\n")
         f.write("package | #classes | sample classes\n---|---|---\n")
         for p in sorted(by_pkg):
             cl = sorted(by_pkg[p])
@@ -50,7 +48,7 @@ def main():
         if ps != pd:
             pe[(short(ps), short(pd))] += 1
     with open(os.path.join(out, "package_deps.md"), "w") as f:
-        f.write(f"# Spring AI {v} - package dependencies (from -> to : #class deps)\n\n")
+        f.write(f"# {NAME} {v} - package dependencies (from -> to : #class deps)\n\n")
         for (a, b), w in pe.most_common():
             f.write(f"{a} -> {b} : {w}\n")
     print(len(mods), "modules,", len(by_pkg), "packages,", len(pe), "package edges")

@@ -9,7 +9,7 @@ import csv
 import os
 import re
 
-from common import DATA, RESULTS, ROOT
+from common import DATA, PROJECT_DIR, RESULTS
 
 
 def read(path):
@@ -31,7 +31,8 @@ def main():
     by = {(m["version"], m["arch"]): m for m in met}
     stab = read(os.path.join(RESULTS, "stability.csv"))
     nf = {r["version"]: r for r in read(os.path.join(RESULTS, "noise_vs_fanin.csv"))}
-    nc = {r["version"]: r for r in read(os.path.join(RESULTS, "noise_comparison.csv"))}
+    ncp = os.path.join(RESULTS, "noise_comparison.csv")
+    nc = {r["version"]: r for r in read(ncp)} if os.path.exists(ncp) else None
     vs = [v["version"] for v in vers]
     t = {}
 
@@ -41,24 +42,26 @@ def main():
         top = int(v["top_level_classes"])
         growth = f"{100 * (top - prev) / prev:+.1f}%" if prev else "–"
         prev = top
-        rows.append([v["version"], tags[v["version"]]["date"], v["modules_with_code"],
-                     v["packages"], v["class_files"], top, growth,
+        mod = [v["modules_with_code"]] if "modules_with_code" in v else []
+        rows.append([v["version"], tags[v["version"]]["date"]] + mod +
+                    [v["packages"], v["class_files"], top, growth,
                      s["class_dependencies"],
                      f"{int(s['class_dependencies']) / int(s['classes']):.2f}"])
-    t["TABLE_SIZE"] = table(["Version", "Date", "Modules", "Packages", "Class files",
-                             "Top-level classes", "Δ classes", "Dependencies",
-                             "Deps/class"], rows)
+    t["TABLE_SIZE"] = table(["Version", "Date"] + (["Modules"] if "modules_with_code" in vers[0] else [])
+                            + ["Packages", "Class files", "Top-level classes", "Δ classes",
+                               "Dependencies", "Deps/class"], rows)
 
     rows = []
     for v in vs:
         s = size[v]
+        cmp_ = [nc[v]["jnode3_noise"], nc[v]["jnode4_noise"], nc[v]["jaccard"]] if nc else []
         rows.append([v, s["connected_classes"], s["isolated_classes"], s["noise_classes"],
-                     s["noise_pct"] + "%", nc[v]["jnode3_noise"], nc[v]["jnode4_noise"],
-                     nc[v]["jaccard"], nf[v]["top30_fanin_flagged"],
+                     s["noise_pct"] + "%"] + cmp_ + [nf[v]["top30_fanin_flagged"],
                      "yes" if s["noise_fallback"] == "True" else ""])
     t["TABLE_NOISE"] = table(["Version", "Connected classes", "Isolated", "Noise (top-level)",
-                              "Noise %", "JNode-3 noise files", "JNode-4 noise files",
-                              "Jaccard 3 vs 4", "Top-30 fan-in flagged", "Fallback"], rows)
+                              "Noise %"] +
+                             (["JNode-3 noise files", "JNode-4 noise files", "Jaccard 3 vs 4"] if nc else [])
+                             + ["Top-30 fan-in flagged", "Fallback"], rows)
 
     def arch_table(key, fmt="{}"):
         rows = []
@@ -120,16 +123,23 @@ def main():
     t["TABLE_ACDC"] = table(["Graph", "Patterns", "Max size", "k", "Largest", "TurboMQ/k",
                              "Intra deps"], rows)
 
-    rows = [[r["to"], r["modules"], r["added"], r["removed"]]
-            for r in read(os.path.join(RESULTS, "module_changes.csv"))]
-    t["TABLE_MODCHANGES"] = table(["Version", "Modules", "Added", "Removed"], rows)
+    mcp = os.path.join(RESULTS, "module_changes.csv")
+    if os.path.exists(mcp):
+        rows = [[r["to"], r["modules"], r["added"], r["removed"]] for r in read(mcp)]
+        t["TABLE_MODCHANGES"] = table(["Version", "Modules", "Added", "Removed"], rows)
+    pcp = os.path.join(RESULTS, "package_changes.csv")
+    if os.path.exists(pcp):
+        rows = [[r["to"], r["packages"], r["added"], r["removed"], r["classes_added"],
+                 r["classes_removed"]] for r in read(pcp)]
+        t["TABLE_PKGCHANGES"] = table(["Version", "Packages", "Pkgs added", "Pkgs removed",
+                                       "Classes added", "Classes removed"], rows)
 
-    src = open(os.path.join(ROOT, "report", "report_src.md")).read()
+    src = open(os.path.join(PROJECT_DIR, "report", "report_src.md")).read()
     missing = set(re.findall(r"\{\{(\w+)\}\}", src)) - set(t)
     if missing:
         raise SystemExit(f"unknown placeholders: {missing}")
     out = re.sub(r"\{\{(\w+)\}\}", lambda m: t[m.group(1)], src)
-    with open(os.path.join(ROOT, "report", "report.md"), "w") as f:
+    with open(os.path.join(PROJECT_DIR, "report", "report.md"), "w") as f:
         f.write(out)
     print("report/report.md written")
 

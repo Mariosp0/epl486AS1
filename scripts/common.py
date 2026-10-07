@@ -1,11 +1,26 @@
 """Shared helpers: loading the tool outputs and building the class graph."""
 import csv
+import json
 import os
 from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.path.join(ROOT, "data")
-RESULTS = os.path.join(ROOT, "results")
+# Which analysed system: PROJECT=guava -> guava/{data,results,ai,report}.
+# Default "." keeps the Spring AI layout at the repository root.
+PROJECT_DIR = os.path.normpath(os.path.join(ROOT, os.environ.get("PROJECT", ".")))
+DATA = os.path.join(PROJECT_DIR, "data")
+RESULTS = os.path.join(PROJECT_DIR, "results")
+_cfg_path = os.path.join(PROJECT_DIR, "project.json")
+CONFIG = json.load(open(_cfg_path)) if os.path.exists(_cfg_path) else {
+    "name": "Spring AI", "prefix": "org.springframework.ai.",
+    "highlight_versions": ["0.8.0", "1.0.0", "1.1.0", "2.0.0"]}
+PREFIX = CONFIG["prefix"]
+NAME = CONFIG["name"]
+
+
+def short(name):
+    """Strip the project's package prefix (for display)."""
+    return name[len(PREFIX):] if name.startswith(PREFIX) else name
 
 
 def versions():

@@ -1,0 +1,14 @@
+package,top_level_classes
+com.google.common.annotations,4
+com.google.common.base,34
+com.google.common.base.internal,1
+com.google.common.cache,16
+com.google.common.collect,189
+com.google.common.eventbus,9
+com.google.common.hash,17
+com.google.common.io,25
+com.google.common.math,6
+com.google.common.net,7
+com.google.common.primitives,16
+com.google.common.reflect,7
+com.google.common.util.concurrent,42
