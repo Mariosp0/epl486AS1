@@ -1,10 +1,7 @@
 data/cache/
-locks/
-logs_*.txt
 __pycache__/
 *.pyc
 logs/
-report/report.html
 guava/locks/
 guava/logs/
 guava/report/report.html

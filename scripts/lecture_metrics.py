@@ -4,7 +4,7 @@
 1. MoJoFM (L6-7, slides 28-32): similarity of a recovered architecture A to a
    reference architecture R, MoJoFM(A,R) = (1 - mno(A,R)/max mno(.,R)) * 100 %,
    computed with the original MoJo 2.0 implementation (tools/mojo.jar).
-   Spring AI and Guava have no expert ("ground-truth") architecture, so we use
+   The analysed system has no expert ("ground-truth") architecture, so we use
    (a) the developers' package structure for every version and (b) the AI
    architecture (Phase 4) for the latest version as reference architectures.
    -> results/mojofm.csv

@@ -6,7 +6,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TOOLS="$ROOT/tools"
-cd "$ROOT/${PROJECT:-.}"   # PROJECT=guava -> work inside guava/
+cd "$ROOT/${PROJECT:-guava}"   # project folder (default guava/)
 mkdir -p data/dependencies data/noise logs
 VERSIONS=("$@")
 if [ ${#VERSIONS[@]} -eq 0 ]; then

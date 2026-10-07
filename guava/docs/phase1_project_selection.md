@@ -73,7 +73,7 @@ we analyse the `-jre` flavour (the main line).
 >    releases, ~97K NCLOC in 33.7.0, 1,261 commits since 1/2024). We plan to
 >    analyse 13 versions: every second major release 10.0–32.0 and the latest
 >    release 33.7.0.
-> 2. **Spring AI** – https://github.com/spring-projects/spring-ai
+> 2. `<alternative 2>`
 > 3. `<alternative 3>`
 >
 > We would prefer the team repository to be private.

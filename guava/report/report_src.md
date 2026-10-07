@@ -77,9 +77,8 @@ structure *is* the documented architecture.
 
 # 2. Methodology
 
-The pipeline is the same as for our first system (Spring AI), shared through
-the scripts in `scripts/`. Only the data collection is Guava-specific
-(`guava/scripts/`).
+The analysis scripts are in `scripts/`; the Guava-specific data collection is
+in `guava/scripts/`.
 
 ```
 GitHub tags ─► sparse selection ─► Maven Central jar ─► com/google/** classes
@@ -130,7 +129,7 @@ GitHub tags ─► sparse selection ─► Maven Central jar ─► com/google/*
 | Step | Tool / library |
 |---|---|
 | Class dependencies (3.2) | Course **DependencyExtractor.jar** |
-| Noise classes (3.3) | Course **JNode.jar** with the documented performance and precision patches from our first analysis (`tools/JNode-fast-p4.jar`, identical results where the original works; see `tools/jnode-patch/`) |
+| Noise classes (3.3) | Course **JNode.jar** with two documented patches (`tools/JNode-fast-p4.jar`, see below and `tools/jnode-patch/`) |
 | ACDC (A1, A2) | ACDC (Tzerpos & Holt), Java port from USC **ARCADE** (`tools/acdc.jar`) |
 | Clustering (A3, A4) | **scikit-learn** `KMeans`, `TruncatedSVD`; `kneed` (elbow) |
 | Metrics, plots | Python 3.13, numpy, scipy, matplotlib |
@@ -262,9 +261,7 @@ Dependencies grew from **1,289 to 2,750 (×2.1)**, faster than the classes
 in 32.0.0) and, unlike in a system that is actively restructured, it
 **never decreases**. This is a clear case of *increasing complexity (II)*.
 New features are built on top of the existing collection and base APIs, so
-each new class adds dependencies to a dense core. Guava is also denser than
-an application framework: our first system (Spring AI) had 2.9–4.1
-dependencies per class.
+each new class adds dependencies to a dense core.
 
 ## 3.3 Widely-used (noise) classes
 
@@ -292,7 +289,7 @@ is only partly what one would call "omnipresent":
   `ImmutableCollection`, `Iterables`, `Lists`, `Sets`, `Multimap` and
   `HashCode`, which are core collection types used throughout the library.
 
-As in our first analysis, JNode's SIG is a reachability measure, and its
+JNode's SIG is a reachability measure, not a usage count, so its
 noise set must be sanity-checked against fan-in. For Guava, removing the noise
 mostly removes `common.base` and `common.cache` from the graph.
 
@@ -377,7 +374,7 @@ Table 6 – ACDC parameter experiment (33.7.0).
    (3.2).
 
 So Guava shows *declining quality (VII)* in its expansion phase and then
-stabilises. Unlike our first system, there is no restructuring phase that
+stabilises. There is no restructuring phase that
 improves the measures again: the compatibility policy makes a re-modularisation
 of a public library practically impossible. Packages and public classes are
 API, and moving them would break users.
@@ -400,8 +397,8 @@ the lecture's MoJoFM.
 
 * **To the packages** (Table 13): all recovered architectures are 69–83 %
   similar to the packages. Values are high because the packages are coarse:
-  merging small clusters into them needs few Move/Join operations. Unlike in
-  Spring AI, **k-means is closer than ACDC** (A3 73.9 % vs A1 70.9 %), and
+  merging small clusters into them needs few Move/Join operations. **k-means
+  is closer than ACDC** (A3 73.9 % vs A1 70.9 %), and
   **removing the noise classes brings both closer** (A2 74.5 %, A4 80.2 %), as in
   the lecture's experiment.
 * **To the AI architecture** (Table 14): the packages are closest (75.7 %),
@@ -485,8 +482,7 @@ Table 17 – Architectural smells per version.
 * **Law II – increasing complexity.** In 10 of the 12 intervals Guava **adds
   more dependencies than it removes** (e.g. +538/−190 in 14.0, +508/−167 in
   20.0). Only 18.0 (+59/−68) and 33.7.0 (+97/−168) are small net reductions.
-  Unlike
-  Spring AI there are no big restructuring releases, so complexity grows
+  There are no big restructuring releases, so complexity grows
   almost unchecked, matching the rising dependency density (3.2).
 * **Law IV – conservation of organisational stability does not hold over 15
   years.** The work rate falls from 64–68 commits/month (2011–2013) to 39–64
@@ -528,7 +524,7 @@ another tool (e.g. ChatGPT) would give an independent comparison.
 * **P1 (no context):** a correct package-level layered view (base →
   primitives/math → collect → concurrency → feature libraries) with the
   right patterns (builders, immutable objects, forwarding decorators,
-  template methods). Unlike for Spring AI, it contained **no outdated or
+  template methods). It contained **no outdated or
   invented parts**: Guava is old, stable and very well known, so the
   model's general knowledge matches the current code. It was uncertain only
   about removed legacy APIs, correctly.
@@ -603,8 +599,8 @@ between versions (MoJoFM ≈ 89 % vs ≈ 72 % for k-means).
 ## 5.2 Does the AI tool help? How do information and prompts influence the result?
 
 * **For a well-known, stable system the AI is already good without context**
-  (P1). This is the opposite of what we saw for a young, fast-changing
-  framework (Spring AI), where P1 contained removed modules. The value of extra
+  (P1). For a young, fast-changing system we would expect the opposite (the
+  model's knowledge would be outdated). The value of extra
   information is in **precision**, not correctness. With the class list and
   the dependency graph (P3) the answer becomes a complete, checkable mapping
   with measured dependencies and cycles.

@@ -9,7 +9,7 @@ import csv
 import os
 import re
 
-from common import DATA, PROJECT_DIR, RESULTS
+from common import DATA, PROJECT_DIR, RESULTS, short
 
 
 def read(path):
@@ -168,8 +168,7 @@ def main():
                                    "Unstable dep. %", "God comp.", "God components"],
                                   [[r["version"], r["cyclic_packages_pct"], r["cyclic_classes_pct"],
                                     r["hub_like_pct"], r["unstable_dep_pct"], r["god_components"],
-                                    " ".join(n.replace("org.springframework.ai.", "").replace(
-                                        "com.google.", "") for n in r["god_component_names"].split()[:6])
+                                    " ".join(short(n) for n in r["god_component_names"].split()[:6])
                                     + (" …" if len(r["god_component_names"].split()) > 6 else "")]
                                    for r in rows])
     rows = opt("dependency_changes.csv")

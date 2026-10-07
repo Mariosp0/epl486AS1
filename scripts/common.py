@@ -5,15 +5,13 @@ import os
 from collections import defaultdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Which analysed system: PROJECT=guava -> guava/{data,results,ai,report}.
-# Default "." keeps the Spring AI layout at the repository root.
-PROJECT_DIR = os.path.normpath(os.path.join(ROOT, os.environ.get("PROJECT", ".")))
+# Analysed system: its folder holds data/, results/, ai/, report/ and
+# project.json. Default: guava/ (override with PROJECT=<folder>).
+PROJECT_DIR = os.path.normpath(os.path.join(ROOT, os.environ.get("PROJECT", "guava")))
 DATA = os.path.join(PROJECT_DIR, "data")
 RESULTS = os.path.join(PROJECT_DIR, "results")
 _cfg_path = os.path.join(PROJECT_DIR, "project.json")
-CONFIG = json.load(open(_cfg_path)) if os.path.exists(_cfg_path) else {
-    "name": "Spring AI", "prefix": "org.springframework.ai.",
-    "highlight_versions": ["0.8.0", "1.0.0", "1.1.0", "2.0.0"]}
+CONFIG = json.load(open(_cfg_path))
 PREFIX = CONFIG["prefix"]
 NAME = CONFIG["name"]
 

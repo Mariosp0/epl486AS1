@@ -6,8 +6,8 @@ fresh conversation with the listed inputs from `guava/ai/inputs/`
 `guava/ai/responses/`. To reproduce with another tool (e.g. ChatGPT), paste
 the prompt and attach the listed files.
 
-Guava is a single Maven module, so the module-level step of the Spring AI
-analysis is replaced by the package list, and – because one package
+Guava is a single Maven module, so the information is given per package, and
+– because one package
 (`common.collect`) holds a third of all classes – P3 also receives the list
 of all classes and is asked to map **classes** (not only packages).
 

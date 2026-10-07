@@ -5,7 +5,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TOOLS="$ROOT/tools"
-cd "$ROOT/${PROJECT:-.}"   # PROJECT=guava -> work inside guava/
+cd "$ROOT/${PROJECT:-guava}"   # project folder (default guava/)
 JAR="${JNODE_JAR:-$TOOLS/JNode-fast-p4.jar}"
 OUT="${OUT:-data/noise}"
 LOCKS="locks/$(basename "$OUT")"
