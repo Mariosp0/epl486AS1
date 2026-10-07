@@ -175,7 +175,14 @@ three methods; `tools/jnode-patch/` documents the patch:
 and pattern set (`b` BodyHeader, `s` SubGraph, `o` OrphanAdoption), so that
 we can run the experiment suggested in the tutorial. (b) A hash map for node
 lookup when reading the RSF file (same output, linear instead of quadratic
-time). Input: `data/rsf/<v>_full.rsf` / `_nonoise.rsf` with one
+time). (c) **Subsystem naming.** ACDC was written for C file names and names
+each subsystem after the *base name* of its dominator (the text before the
+last dot, `foo.c` → `foo`) + `.ss`. For a Java class name this base name is
+the *package*, so all subsystems whose dominators share a package received
+the same name and were merged when the output was read. We therefore pass
+file-style names (`pkg.Class.java`) to ACDC and strip the suffix from the
+output; each subsystem is then named after its dominator class (e.g.
+`openai.OpenAiChatModel.ss`). Input: `data/rsf/<v>_full.rsf` / `_nonoise.rsf` with one
 `depends A B` line per distinct dependency.
 
 ## 2.4 Implementation steps
@@ -211,7 +218,8 @@ automatically with the *Kneedle* algorithm. Figure 2 shows both curves for
 maximum lies at clusters of only 4–11 classes on average (e.g. k = 76 for the
 284 classes of 0.8.0), which is too fine to be an architecture: such a
 "component" is little more than a class with its helpers. The elbow gives
-clusters of 6–12 classes on average, comparable to ACDC's clusters. At the
+clusters of 6–12 classes on average, slightly coarser than ACDC (5–6 classes
+per cluster). At the
 elbow the silhouette has already reached 91–98 % of its maximum (77–79 % only
 for the small 0.8.0). The resulting k grows from 36 (0.8.0) to 84 (A3) /
 76 (A4) in 2.1.0-M1 (Table 5).
@@ -339,43 +347,46 @@ Table 4 – Mean over the 25 versions.
 
 ![Figure 8 – Number of clusters per version.](../results/figures/clusters.png)
 
-**Size of the recovered architectures.** ACDC produces 42 (0.8.0) to 124
+**Size of the recovered architectures.** ACDC produces 54 (0.8.0) to 185
 (2.1.0-M1) clusters, k-means 36 to 84 (A3) / 76 (A4). ACDC's clusters are
-less balanced: its largest cluster grows to 90 classes in 2.1.0-M1, whereas
-k-means clusters never exceed 35 classes. ACDC never leaves a singleton
-(OrphanAdoption assigns every orphan). The package decomposition has
-~240 packages, 54 of them with a single class (Table 4).
+less balanced: its largest cluster has 34–76 classes (50 in 2.1.0-M1),
+whereas k-means clusters never exceed 35 classes. ACDC leaves almost no
+singletons (1.7 per version on average; OrphanAdoption assigns orphans to
+the subsystem they depend on most). The package decomposition has ~240
+packages, 54 of them with a single class (Table 4).
 
 **Quality.** In every version and for every metric, the algorithmic
 architectures are **far more modular than the package structure**. On
-average 42 % (A1) and 33 % (A3) of the dependencies stay inside a cluster,
-against 21 % inside a package. TurboMQ/k is 0.44–0.70 vs 0.20. Spring AI's
+average 38 % (A1) and 33 % (A3) of the dependencies stay inside a cluster,
+against 21 % inside a package. TurboMQ/k is 0.41–0.70 vs 0.20. Spring AI's
 packages are organised by *feature* (`chat.prompt`, `chat.messages`,
 `chat.model`, ...) and by *vendor* (`openai`, `openai.api`, ...), and
 features are used across packages. The recovery algorithms group classes
 by *collaboration*.
 
-* **ACDC vs k-means.** ACDC has the higher cohesion and BasicMQ (0.21 vs
+* **ACDC vs k-means.** ACDC has the higher cohesion and BasicMQ (0.23 vs
   0.13–0.15) because its many small subgraph clusters are dense. k-means has
-  the higher TurboMQ/k (0.53 vs 0.44 on the full graph) and fewer, more
-  balanced clusters. ACDC keeps more dependencies inside clusters on the full
-  graph (42 % vs 33 %), and both reach ~57 % without noise.
+  the higher TurboMQ/k (0.53 vs 0.41 on the full graph) and fewer, more
+  balanced clusters. ACDC keeps slightly more dependencies inside clusters on
+  the full graph (38 % vs 33 %); without noise k-means is ahead (57 % vs 53 %).
 * **Effect of noise removal (A1→A2, A3→A4).** Removing the noise classes
-  raises TurboMQ/k by **+0.14 (ACDC) and +0.18 (k-means)**, the intra-cluster
-  share from 42 → 58 % and 33 → 57 %, and lowers coupling by 30–50 %. It also
+  raises TurboMQ/k by **+0.12 (ACDC) and +0.18 (k-means)**, the intra-cluster
+  share from 38 → 53 % and 33 → 57 %, and lowers coupling by a third (ACDC)
+  to a half (k-means). It also
   makes the clusterings more stable over time (3.5). Hub classes such as
   `Document` or `ChatOptions` connect almost every cluster to every other one;
   without them the true subsystems separate. The effect is strongest for
-  1.0.0-M1…M6 (TurboMQ/k up to 0.86 for A4), where JNode removed ~19 % of the
+  1.0.0-M1…M6 (TurboMQ/k up to 0.63 for A2 and 0.86 for A4), where JNode removed ~19 % of the
   classes, and smaller after 1.0.0-M7 (fewer noise classes, see 3.3).
 
 **ACDC parameters (tutorial suggestion).** Table 6 shows the experiment on
 2.1.0-M1. (i) **BodyHeader has no effect**: `bso` and `so` give identical
 results. (ii) **OrphanAdoption is essential**: without it, ACDC's last step
 (ClusterLast) puts all unclustered classes into one cluster of 406 classes,
-and TurboMQ/k drops from 0.47 to 0.35. (iii) The **maximum cluster size**
-matters only below 20: 5 gives 146 smaller clusters with lower TurboMQ/k
-(0.44), and ≥ 20 gives the same result. We therefore kept the default (20, `bso`).
+and TurboMQ/k drops from 0.41 to 0.34. (iii) The **maximum cluster size**
+matters only below 20: 5 gives 213 smaller clusters with lower TurboMQ/k
+(0.39), 10 gives 192 (0.40), and 20, 40 or 80 give practically the same
+result (184–185 clusters, 0.411–0.412). We therefore kept the default (20, `bso`).
 
 ![Figure 9 – ACDC parameter experiment (2.1.0-M1, full graph); the `bso` line lies exactly under `so`.](../results/figures/acdc_params.png)
 
@@ -397,33 +408,36 @@ The evolution of the metrics (Tables 5, 7, 8; Figures 7, 10–13) tells a
 consistent story in three phases:
 
 1. **0.8.0 → 1.0.0-M6 – erosion during fast growth.** The modularity of the
-   full system decreases: ACDC TurboMQ/k falls from 0.49 to 0.41, the
+   full system decreases: ACDC TurboMQ/k falls from 0.46 to 0.40, the
    package decomposition from 0.25 to 0.19, and the intra-cluster share of
-   A1 from 0.49 to 0.38. More and more classes depend on a growing set of
+   A1 from 0.47 to 0.37. More and more classes depend on a growing set of
    core abstractions, which is *declining quality (VII)* while new features
    are added quickly. The architectures are also unstable between releases
-   (A1 ARI 0.64–0.88 for M1–M5): new features are not only added but
+   (A1 ARI 0.62–0.88 for M1–M5): new features are not only added but
    re-wired.
 2. **1.0.0-M7 → 1.0.0 – restructuring.** The module split is the largest
-   architectural change in the history (A1 ARI 0.65 vs 1.0.0-M6). After it,
-   the noise-free architectures (A2, A4) lose quality (A2 0.62 → 0.52)
+   architectural change in the history (A1 ARI 0.61 vs 1.0.0-M6). After it,
+   the noise-free architectures (A2, A4) lose quality (A2 0.58 → 0.51)
    because fewer hub classes are removed (3.3). The full-graph architectures
    stay at their level.
-3. **1.1.0-M1 → 2.1.0-M1 – stable, slowly improving.** ACDC TurboMQ/k rises
-   from 0.42 to 0.47, k-means from 0.53 to 0.57, and coupling falls
-   (A1 0.0024 in 1.0.0 → 0.0015). ACDC architectures are **very stable** between
-   releases (ARI 0.94–1.00 for A2 between 1.0.0 and 2.0.0-M4). The visible
-   dips are 2.0.0-M3 (MCP annotations) and 2.0.0-M5 (provider removals).
-   Despite +33 % classes since 1.0.0, quality did not decline. The clean-up
-   releases kept the architecture in shape.
+3. **1.1.0-M1 → 2.1.0-M1 – stable.** ACDC TurboMQ/k stays at 0.40–0.42
+   while its intra-cluster share rises from 0.36 to 0.40; k-means rises from
+   0.53 to 0.57, and coupling falls (A1 0.0030 in 1.0.0 → 0.0017). ACDC
+   architectures are **very stable** between releases (ARI 0.94–1.00 for A2
+   between 1.0.0 and 2.0.0-M4). The visible dips are 2.0.0-M3 (MCP
+   annotations) and 2.0.0-M5 (provider removals). The exception is A2, which
+   falls from 0.55 to 0.46 in 2.0.0/2.1.0-M1: JNode's noise set drifts towards
+   the MCP classes and leaves real hubs such as `Document` in the graph (3.3).
+   Despite +33 % classes since 1.0.0, the quality of the full system did not
+   decline. The clean-up releases kept the architecture in shape.
 
 Overall, Lehman's *declining quality* law holds only for the early,
 fast-growing phase. After 1.0 the project counteracts it with explicit
 restructuring, enforced module rules (design doc 02) and removal of
-adapters, so quality is stable or improves slightly.
+adapters, so quality stays stable.
 
 **Stability of the methods.** ACDC is clearly more stable than k-means (mean
-ARI 0.89/0.93 for A1/A2 vs 0.77/0.81 for A3/A4). ACDC's patterns are
+ARI 0.88/0.94 for A1/A2 vs 0.77/0.81 for A3/A4). ACDC's patterns are
 deterministic and local, so a release changes only the clusters it touches.
 k-means re-partitions the whole space whenever k or the embedding changes.
 For evolution studies ACDC therefore gives more interpretable diffs.
@@ -486,24 +500,24 @@ Table 12 – Agreement (ARI) of the AI architecture with the other architectures
 
 ## 5.1 Comparing the architectures of the latest version
 
-* **Granularity.** The AI architecture has **12 components**, ACDC 124
+* **Granularity.** The AI architecture has **12 components**, ACDC 185
   clusters, k-means 84, the package structure 282 packages. Only the AI
   architecture is at the level of abstraction an architect would draw on a
   whiteboard. The algorithmic architectures are closer to "modules of
   collaborating classes" and would need a second, hierarchical step to be read
   as components.
-* **Quality metrics.** With 10× fewer components, the AI architecture keeps
-  **the same share of dependencies inside components as ACDC (47.2 % vs
-  47.3 %)**, and its TurboMQ/k is almost the same (0.457 vs 0.467). k-means
+* **Quality metrics.** With 15× fewer components, the AI architecture keeps
+  **a higher share of dependencies inside components than ACDC (47.2 % vs
+  40.4 %)**, and its TurboMQ/k is also higher (0.457 vs 0.411). k-means
   is better on TurboMQ/k (0.567) and k-means without noise is best (0.648).
-  Cohesion and BasicMQ are much lower for the AI (0.028 vs 0.21) only
+  Cohesion and BasicMQ are much lower for the AI (0.028 vs 0.23) only
   because intra-connectivity divides by Nᵢ²: large components can never be
   dense. These metrics are not comparable across very different k.
 * **Agreement.** The AI architecture agrees very little with all algorithmic
-  architectures (ARI ≈ 0.09–0.11) and even with the packages (0.07; ARI is
+  architectures (ARI ≈ 0.05–0.11) and even with the packages (0.07; ARI is
   low when the numbers of groups differ so much). ACDC and k-means agree with
-  each other only moderately (ARI 0.30 for A1 vs A3, 0.35 for A2 vs A4), and
-  each agrees with the packages at ARI ≈ 0.25–0.30.
+  each other only moderately (ARI 0.29 for A1 vs A3, 0.32 for A2 vs A4), and
+  each agrees with the packages at ARI ≈ 0.24–0.30.
 * **Different principles.** The AI groups by **responsibility and
   architectural role**. All provider adapters form one component, all
   vector-store adapters another, all auto-configuration a third. The
@@ -572,7 +586,8 @@ JNode's SIG measure depends on the graph's shape.
   classes are kept once.
 * **Tool changes.** JNode had to be patched (performance, identical output;
   precision, Jaccard ≥ 0.88 with the original where it worked), and 0.8.0 needed
-  a threshold fallback. ACDC is a third-party port, not the York original.
+  a threshold fallback. ACDC is a third-party port, not the York original,
+  and needed file-style class names to name its subsystems correctly (2.3).
 * **k-means.** The results depend on the feature representation (dependency
   profiles + SVD) and on the elbow choice of k. The silhouette would pick
   much finer clusterings (Figure 2).

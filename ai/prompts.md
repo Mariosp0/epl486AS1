@@ -82,8 +82,8 @@ Inputs: P3 conversation + the quality metrics of the P3 architecture computed by
 ```text
 I mapped every class to your components and computed the metrics below
 (cohesion = mean intra-connectivity, coupling = mean inter-connectivity,
-TurboMQ, share of dependencies that stay inside components). The ACDC and
-k-means architectures of the same version have higher TurboMQ/k.
+TurboMQ, share of dependencies that stay inside components), next to the
+ACDC and k-means architectures of the same version.
 <metrics table: see the top of ai/responses/P4_response.md>
 Explain the difference. Would you change your decomposition, and if so how,
 without losing its meaning for a developer?

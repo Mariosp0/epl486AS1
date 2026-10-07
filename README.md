@@ -58,6 +58,10 @@ recreated by `collect_versions.py`.
   CLI arguments `maxClusterSize` and `patterns` (`b`=BodyHeader, `s`=SubGraph,
   `o`=OrphanAdoption) so the parameters can be varied, (2) a hash-map lookup in
   `TAInput` instead of a full tree scan per input line (same output, faster).
+  `scripts/recover.py` passes file-style names (`pkg.Class.java`) to ACDC:
+  ACDC names a subsystem after its dominator's base name (text before the last
+  dot), which for plain Java class names is the package and would merge all
+  subsystems of a package; the suffix is stripped again from the output.
   Usage: `java -jar tools/acdc.jar in.rsf out.rsf [maxClusterSize=20] [patterns=bso]`.
 * k-means: scikit-learn `KMeans`; k chosen with the elbow method (`kneed`).
 

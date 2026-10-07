@@ -9,7 +9,7 @@ import os
 import statistics as st
 from collections import Counter
 
-from common import RESULTS, load_dependencies, load_noise, package, short, versions, write_csv
+from common import CONFIG, RESULTS, load_dependencies, load_noise, package, short, versions, write_csv
 
 
 def main():
@@ -21,7 +21,8 @@ def main():
         noise &= conn
         fin = Counter(d for _, d in dep)
         top = [c for c, _ in fin.most_common(30)]
-        pk = Counter(short(package(c)).split(".")[0] for c in noise)
+        depth = CONFIG.get("package_depth", 1)
+        pk = Counter(".".join(short(package(c)).split(".")[:depth]) for c in noise)
         rows.append({
             "version": v,
             "noise": len(noise),

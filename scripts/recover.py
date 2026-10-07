@@ -45,13 +45,36 @@ def write_rsf(path, edges):
 
 
 def run_acdc(rsf, out, max_size=20, patterns="bso"):
-    subprocess.run(["java", "-jar", ACDC, rsf, out, str(max_size), patterns],
+    """Run ACDC and return {class: cluster}.
+
+    ACDC was designed for file names ("foo.c") and names every subsystem
+    after its dominator's *base name* (text before the last dot) + ".ss".
+    With Java class names that base name is the package, so all subsystems
+    dominated by classes of the same package would get the same name and
+    collapse into one cluster in the output. We therefore pass file-style
+    names ("pkg.Class.java") to ACDC - the base name is then the full class
+    name - and strip the suffix again from the output.
+    """
+    tmp = out + ".in"
+    with open(rsf) as f, open(tmp, "w") as g:
+        for line in f:
+            rel, s, d = line.split()
+            g.write(f"{rel} {s}.java {d}.java\n")
+    subprocess.run(["java", "-jar", ACDC, tmp, out, str(max_size), patterns],
                    check=True, capture_output=True)
+    os.remove(tmp)
     clusters = {}
     with open(out) as f:
-        for line in f:
+        lines = f.read().split("\n")
+    with open(out, "w") as f:
+        for line in lines:
+            if not line.strip():
+                continue
             _, c, cls = line.split()
+            c = c[:-len(".java.ss")] + ".ss" if c.endswith(".java.ss") else c
+            cls = cls[:-len(".java")] if cls.endswith(".java") else cls
             clusters[cls] = c
+            f.write(f"contain {c} {cls}\n")
     return clusters
 
 

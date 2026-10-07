@@ -201,7 +201,14 @@ three methods; `tools/jnode-patch/` documents the patch:
 and pattern set (`b` BodyHeader, `s` SubGraph, `o` OrphanAdoption), so that
 we can run the experiment suggested in the tutorial. (b) A hash map for node
 lookup when reading the RSF file (same output, linear instead of quadratic
-time). Input: `data/rsf/<v>_full.rsf` / `_nonoise.rsf` with one
+time). (c) **Subsystem naming.** ACDC was written for C file names and names
+each subsystem after the *base name* of its dominator (the text before the
+last dot, `foo.c` → `foo`) + `.ss`. For a Java class name this base name is
+the *package*, so all subsystems whose dominators share a package received
+the same name and were merged when the output was read. We therefore pass
+file-style names (`pkg.Class.java`) to ACDC and strip the suffix from the
+output; each subsystem is then named after its dominator class (e.g.
+`openai.OpenAiChatModel.ss`). Input: `data/rsf/<v>_full.rsf` / `_nonoise.rsf` with one
 `depends A B` line per distinct dependency.
 
 ## 2.4 Implementation steps
@@ -237,7 +244,8 @@ automatically with the *Kneedle* algorithm. Figure 2 shows both curves for
 maximum lies at clusters of only 4–11 classes on average (e.g. k = 76 for the
 284 classes of 0.8.0), which is too fine to be an architecture: such a
 "component" is little more than a class with its helpers. The elbow gives
-clusters of 6–12 classes on average, comparable to ACDC's clusters. At the
+clusters of 6–12 classes on average, slightly coarser than ACDC (5–6 classes
+per cluster). At the
 elbow the silhouette has already reached 91–98 % of its maximum (77–79 % only
 for the small 0.8.0). The resulting k grows from 36 (0.8.0) to 84 (A3) /
 76 (A4) in 2.1.0-M1 (Table 5).
@@ -387,8 +395,8 @@ Table 4 – Mean over the 25 versions.
 
 | Architecture | k | Largest cluster | Cohesion | Coupling | BasicMQ | TurboMQ | TurboMQ/k | Intra deps | ARI vs packages |
 |---|---|---|---|---|---|---|---|---|---|
-| A1 ACDC (full) | 109 | 61 | 0.2160 | 0.00212 | 0.2139 | 47.5 | 0.437 | 0.418 | 0.270 |
-| A2 ACDC (no noise) | 107 | 51 | 0.2167 | 0.00140 | 0.2153 | 61.1 | 0.573 | 0.576 | 0.342 |
+| A1 ACDC (full) | 149 | 48 | 0.2329 | 0.00238 | 0.2305 | 61.1 | 0.412 | 0.380 | 0.244 |
+| A2 ACDC (no noise) | 144 | 26 | 0.2338 | 0.00157 | 0.2322 | 76.0 | 0.535 | 0.525 | 0.303 |
 | A3 k-means (full) | 80 | 27 | 0.1371 | 0.00215 | 0.1349 | 41.9 | 0.528 | 0.332 | 0.268 |
 | A4 k-means (no noise) | 72 | 23 | 0.1556 | 0.00108 | 0.1545 | 50.6 | 0.704 | 0.573 | 0.302 |
 | Packages (full) | 242 | 22 | 0.1423 | 0.00312 | 0.1391 | 48.0 | 0.201 | 0.210 | 1.000 |
@@ -398,43 +406,46 @@ Table 4 – Mean over the 25 versions.
 
 ![Figure 8 – Number of clusters per version.](../results/figures/clusters.png)
 
-**Size of the recovered architectures.** ACDC produces 42 (0.8.0) to 124
+**Size of the recovered architectures.** ACDC produces 54 (0.8.0) to 185
 (2.1.0-M1) clusters, k-means 36 to 84 (A3) / 76 (A4). ACDC's clusters are
-less balanced: its largest cluster grows to 90 classes in 2.1.0-M1, whereas
-k-means clusters never exceed 35 classes. ACDC never leaves a singleton
-(OrphanAdoption assigns every orphan). The package decomposition has
-~240 packages, 54 of them with a single class (Table 4).
+less balanced: its largest cluster has 34–76 classes (50 in 2.1.0-M1),
+whereas k-means clusters never exceed 35 classes. ACDC leaves almost no
+singletons (1.7 per version on average; OrphanAdoption assigns orphans to
+the subsystem they depend on most). The package decomposition has ~240
+packages, 54 of them with a single class (Table 4).
 
 **Quality.** In every version and for every metric, the algorithmic
 architectures are **far more modular than the package structure**. On
-average 42 % (A1) and 33 % (A3) of the dependencies stay inside a cluster,
-against 21 % inside a package. TurboMQ/k is 0.44–0.70 vs 0.20. Spring AI's
+average 38 % (A1) and 33 % (A3) of the dependencies stay inside a cluster,
+against 21 % inside a package. TurboMQ/k is 0.41–0.70 vs 0.20. Spring AI's
 packages are organised by *feature* (`chat.prompt`, `chat.messages`,
 `chat.model`, ...) and by *vendor* (`openai`, `openai.api`, ...), and
 features are used across packages. The recovery algorithms group classes
 by *collaboration*.
 
-* **ACDC vs k-means.** ACDC has the higher cohesion and BasicMQ (0.21 vs
+* **ACDC vs k-means.** ACDC has the higher cohesion and BasicMQ (0.23 vs
   0.13–0.15) because its many small subgraph clusters are dense. k-means has
-  the higher TurboMQ/k (0.53 vs 0.44 on the full graph) and fewer, more
-  balanced clusters. ACDC keeps more dependencies inside clusters on the full
-  graph (42 % vs 33 %), and both reach ~57 % without noise.
+  the higher TurboMQ/k (0.53 vs 0.41 on the full graph) and fewer, more
+  balanced clusters. ACDC keeps slightly more dependencies inside clusters on
+  the full graph (38 % vs 33 %); without noise k-means is ahead (57 % vs 53 %).
 * **Effect of noise removal (A1→A2, A3→A4).** Removing the noise classes
-  raises TurboMQ/k by **+0.14 (ACDC) and +0.18 (k-means)**, the intra-cluster
-  share from 42 → 58 % and 33 → 57 %, and lowers coupling by 30–50 %. It also
+  raises TurboMQ/k by **+0.12 (ACDC) and +0.18 (k-means)**, the intra-cluster
+  share from 38 → 53 % and 33 → 57 %, and lowers coupling by a third (ACDC)
+  to a half (k-means). It also
   makes the clusterings more stable over time (3.5). Hub classes such as
   `Document` or `ChatOptions` connect almost every cluster to every other one;
   without them the true subsystems separate. The effect is strongest for
-  1.0.0-M1…M6 (TurboMQ/k up to 0.86 for A4), where JNode removed ~19 % of the
+  1.0.0-M1…M6 (TurboMQ/k up to 0.63 for A2 and 0.86 for A4), where JNode removed ~19 % of the
   classes, and smaller after 1.0.0-M7 (fewer noise classes, see 3.3).
 
 **ACDC parameters (tutorial suggestion).** Table 6 shows the experiment on
 2.1.0-M1. (i) **BodyHeader has no effect**: `bso` and `so` give identical
 results. (ii) **OrphanAdoption is essential**: without it, ACDC's last step
 (ClusterLast) puts all unclustered classes into one cluster of 406 classes,
-and TurboMQ/k drops from 0.47 to 0.35. (iii) The **maximum cluster size**
-matters only below 20: 5 gives 146 smaller clusters with lower TurboMQ/k
-(0.44), and ≥ 20 gives the same result. We therefore kept the default (20, `bso`).
+and TurboMQ/k drops from 0.41 to 0.34. (iii) The **maximum cluster size**
+matters only below 20: 5 gives 213 smaller clusters with lower TurboMQ/k
+(0.39), 10 gives 192 (0.40), and 20, 40 or 80 give practically the same
+result (184–185 clusters, 0.411–0.412). We therefore kept the default (20, `bso`).
 
 ![Figure 9 – ACDC parameter experiment (2.1.0-M1, full graph); the `bso` line lies exactly under `so`.](../results/figures/acdc_params.png)
 
@@ -442,36 +453,36 @@ Table 6 – ACDC parameter experiment (2.1.0-M1).
 
 | Graph | Patterns | Max size | k | Largest | TurboMQ/k | Intra deps |
 |---|---|---|---|---|---|---|
-| full | bso | 5 | 146 | 57 | 0.4405 | 0.4379 |
-| full | bso | 10 | 129 | 57 | 0.4624 | 0.4545 |
-| full | bso | 20 | 124 | 90 | 0.4672 | 0.4725 |
-| full | bso | 40 | 124 | 90 | 0.4664 | 0.4749 |
-| full | bso | 80 | 124 | 90 | 0.4664 | 0.4749 |
-| full | so | 5 | 146 | 57 | 0.4405 | 0.4379 |
-| full | so | 10 | 129 | 57 | 0.4624 | 0.4545 |
-| full | so | 20 | 124 | 90 | 0.4672 | 0.4725 |
-| full | so | 40 | 124 | 90 | 0.4664 | 0.4749 |
-| full | so | 80 | 124 | 90 | 0.4664 | 0.4749 |
-| full | bs | 5 | 146 | 406 | 0.33 | 0.3866 |
-| full | bs | 10 | 129 | 406 | 0.3484 | 0.3962 |
-| full | bs | 20 | 124 | 406 | 0.352 | 0.4035 |
-| full | bs | 40 | 124 | 406 | 0.3522 | 0.4059 |
-| full | bs | 80 | 124 | 406 | 0.3522 | 0.4059 |
-| nonoise | bso | 5 | 139 | 39 | 0.4886 | 0.4961 |
-| nonoise | bso | 10 | 123 | 49 | 0.5178 | 0.517 |
-| nonoise | bso | 20 | 120 | 68 | 0.5165 | 0.5259 |
-| nonoise | bso | 40 | 120 | 68 | 0.5165 | 0.5259 |
-| nonoise | bso | 80 | 120 | 68 | 0.5165 | 0.5259 |
-| nonoise | so | 5 | 139 | 39 | 0.4886 | 0.4961 |
-| nonoise | so | 10 | 123 | 49 | 0.5178 | 0.517 |
-| nonoise | so | 20 | 120 | 68 | 0.5165 | 0.5259 |
-| nonoise | so | 40 | 120 | 68 | 0.5165 | 0.5259 |
-| nonoise | so | 80 | 120 | 68 | 0.5165 | 0.5259 |
-| nonoise | bs | 5 | 139 | 299 | 0.3867 | 0.3703 |
-| nonoise | bs | 10 | 123 | 299 | 0.4125 | 0.3834 |
-| nonoise | bs | 20 | 120 | 299 | 0.4122 | 0.39 |
-| nonoise | bs | 40 | 120 | 299 | 0.4122 | 0.39 |
-| nonoise | bs | 80 | 120 | 299 | 0.4122 | 0.39 |
+| full | bso | 5 | 213 | 57 | 0.3885 | 0.3742 |
+| full | bso | 10 | 192 | 57 | 0.403 | 0.3863 |
+| full | bso | 20 | 185 | 50 | 0.4113 | 0.404 |
+| full | bso | 40 | 184 | 50 | 0.4119 | 0.4067 |
+| full | bso | 80 | 184 | 50 | 0.4119 | 0.4067 |
+| full | so | 5 | 213 | 57 | 0.3885 | 0.3742 |
+| full | so | 10 | 192 | 57 | 0.403 | 0.3863 |
+| full | so | 20 | 185 | 50 | 0.4113 | 0.404 |
+| full | so | 40 | 184 | 50 | 0.4119 | 0.4067 |
+| full | so | 80 | 184 | 50 | 0.4119 | 0.4067 |
+| full | bs | 5 | 213 | 406 | 0.3159 | 0.3756 |
+| full | bs | 10 | 192 | 406 | 0.3304 | 0.3858 |
+| full | bs | 20 | 185 | 406 | 0.3381 | 0.3946 |
+| full | bs | 40 | 184 | 406 | 0.3389 | 0.3973 |
+| full | bs | 80 | 184 | 406 | 0.3389 | 0.3973 |
+| nonoise | bso | 5 | 199 | 35 | 0.4297 | 0.4109 |
+| nonoise | bso | 10 | 179 | 35 | 0.4508 | 0.4272 |
+| nonoise | bso | 20 | 174 | 35 | 0.4557 | 0.4396 |
+| nonoise | bso | 40 | 174 | 35 | 0.4557 | 0.4396 |
+| nonoise | bso | 80 | 174 | 35 | 0.4557 | 0.4396 |
+| nonoise | so | 5 | 199 | 35 | 0.4297 | 0.4109 |
+| nonoise | so | 10 | 179 | 35 | 0.4508 | 0.4272 |
+| nonoise | so | 20 | 174 | 35 | 0.4557 | 0.4396 |
+| nonoise | so | 40 | 174 | 35 | 0.4557 | 0.4396 |
+| nonoise | so | 80 | 174 | 35 | 0.4557 | 0.4396 |
+| nonoise | bs | 5 | 199 | 299 | 0.3611 | 0.3559 |
+| nonoise | bs | 10 | 179 | 299 | 0.3817 | 0.3699 |
+| nonoise | bs | 20 | 174 | 299 | 0.387 | 0.3796 |
+| nonoise | bs | 40 | 174 | 299 | 0.387 | 0.3796 |
+| nonoise | bs | 80 | 174 | 299 | 0.387 | 0.3796 |
 
 ## 3.5 Quality of the architecture over time
 
@@ -487,33 +498,36 @@ The evolution of the metrics (Tables 5, 7, 8; Figures 7, 10–13) tells a
 consistent story in three phases:
 
 1. **0.8.0 → 1.0.0-M6 – erosion during fast growth.** The modularity of the
-   full system decreases: ACDC TurboMQ/k falls from 0.49 to 0.41, the
+   full system decreases: ACDC TurboMQ/k falls from 0.46 to 0.40, the
    package decomposition from 0.25 to 0.19, and the intra-cluster share of
-   A1 from 0.49 to 0.38. More and more classes depend on a growing set of
+   A1 from 0.47 to 0.37. More and more classes depend on a growing set of
    core abstractions, which is *declining quality (VII)* while new features
    are added quickly. The architectures are also unstable between releases
-   (A1 ARI 0.64–0.88 for M1–M5): new features are not only added but
+   (A1 ARI 0.62–0.88 for M1–M5): new features are not only added but
    re-wired.
 2. **1.0.0-M7 → 1.0.0 – restructuring.** The module split is the largest
-   architectural change in the history (A1 ARI 0.65 vs 1.0.0-M6). After it,
-   the noise-free architectures (A2, A4) lose quality (A2 0.62 → 0.52)
+   architectural change in the history (A1 ARI 0.61 vs 1.0.0-M6). After it,
+   the noise-free architectures (A2, A4) lose quality (A2 0.58 → 0.51)
    because fewer hub classes are removed (3.3). The full-graph architectures
    stay at their level.
-3. **1.1.0-M1 → 2.1.0-M1 – stable, slowly improving.** ACDC TurboMQ/k rises
-   from 0.42 to 0.47, k-means from 0.53 to 0.57, and coupling falls
-   (A1 0.0024 in 1.0.0 → 0.0015). ACDC architectures are **very stable** between
-   releases (ARI 0.94–1.00 for A2 between 1.0.0 and 2.0.0-M4). The visible
-   dips are 2.0.0-M3 (MCP annotations) and 2.0.0-M5 (provider removals).
-   Despite +33 % classes since 1.0.0, quality did not decline. The clean-up
-   releases kept the architecture in shape.
+3. **1.1.0-M1 → 2.1.0-M1 – stable.** ACDC TurboMQ/k stays at 0.40–0.42
+   while its intra-cluster share rises from 0.36 to 0.40; k-means rises from
+   0.53 to 0.57, and coupling falls (A1 0.0030 in 1.0.0 → 0.0017). ACDC
+   architectures are **very stable** between releases (ARI 0.94–1.00 for A2
+   between 1.0.0 and 2.0.0-M4). The visible dips are 2.0.0-M3 (MCP
+   annotations) and 2.0.0-M5 (provider removals). The exception is A2, which
+   falls from 0.55 to 0.46 in 2.0.0/2.1.0-M1: JNode's noise set drifts towards
+   the MCP classes and leaves real hubs such as `Document` in the graph (3.3).
+   Despite +33 % classes since 1.0.0, the quality of the full system did not
+   decline. The clean-up releases kept the architecture in shape.
 
 Overall, Lehman's *declining quality* law holds only for the early,
 fast-growing phase. After 1.0 the project counteracts it with explicit
 restructuring, enforced module rules (design doc 02) and removal of
-adapters, so quality is stable or improves slightly.
+adapters, so quality stays stable.
 
 **Stability of the methods.** ACDC is clearly more stable than k-means (mean
-ARI 0.89/0.93 for A1/A2 vs 0.77/0.81 for A3/A4). ACDC's patterns are
+ARI 0.88/0.94 for A1/A2 vs 0.77/0.81 for A3/A4). ACDC's patterns are
 deterministic and local, so a release changes only the clusters it touches.
 k-means re-partitions the whole space whenever k or the embedding changes.
 For evolution studies ACDC therefore gives more interpretable diffs.
@@ -583,8 +597,8 @@ Table 11 – AI (P3) architecture vs algorithmic architectures (2.1.0-M1).
 |---|---|---|---|---|---|---|---|---|
 | AI (P3), full | 12 | 214 | 0.02836 | 0.002618 | 0.02574 | 5.48 | 0.4567 | 0.4722 |
 | AI (P3), no noise | 12 | 174 | 0.02801 | 0.00229 | 0.02572 | 6.295 | 0.5246 | 0.5236 |
-| A1 ACDC | 124 | 90 | 0.2061 | 0.001544 | 0.20456 | 57.938 | 0.4672 | 0.4725 |
-| A2 ACDC−noise | 120 | 68 | 0.20545 | 0.001483 | 0.20396 | 61.974 | 0.5165 | 0.5259 |
+| A1 ACDC | 185 | 50 | 0.23107 | 0.001699 | 0.22938 | 76.096 | 0.4113 | 0.404 |
+| A2 ACDC−noise | 174 | 35 | 0.23074 | 0.001807 | 0.22893 | 79.295 | 0.4557 | 0.4396 |
 | A3 k-means | 84 | 32 | 0.13482 | 0.001548 | 0.13327 | 47.6 | 0.5667 | 0.4011 |
 | A4 k-means−noise | 76 | 28 | 0.14621 | 0.001163 | 0.14505 | 49.218 | 0.6476 | 0.5178 |
 | Packages | 282 | 19 | 0.14263 | 0.002421 | 0.14021 | 56.873 | 0.2017 | 0.2258 |
@@ -593,31 +607,31 @@ Table 12 – Agreement (ARI) of the AI architecture with the other architectures
 
 |  | A1 | A2 | A3 | A4 | Packages |
 |---|---|---|---|---|---|
-| AI (full) | 0.0879 | 0.1001 | 0.0888 | 0.109 | 0.0688 |
-| AI (no noise) | 0.1073 | 0.1001 | 0.1117 | 0.109 | 0.0791 |
+| AI (full) | 0.0529 | 0.0626 | 0.0888 | 0.109 | 0.0688 |
+| AI (no noise) | 0.0648 | 0.0626 | 0.1117 | 0.109 | 0.0791 |
 
 # 5. Reflection
 
 ## 5.1 Comparing the architectures of the latest version
 
-* **Granularity.** The AI architecture has **12 components**, ACDC 124
+* **Granularity.** The AI architecture has **12 components**, ACDC 185
   clusters, k-means 84, the package structure 282 packages. Only the AI
   architecture is at the level of abstraction an architect would draw on a
   whiteboard. The algorithmic architectures are closer to "modules of
   collaborating classes" and would need a second, hierarchical step to be read
   as components.
-* **Quality metrics.** With 10× fewer components, the AI architecture keeps
-  **the same share of dependencies inside components as ACDC (47.2 % vs
-  47.3 %)**, and its TurboMQ/k is almost the same (0.457 vs 0.467). k-means
+* **Quality metrics.** With 15× fewer components, the AI architecture keeps
+  **a higher share of dependencies inside components than ACDC (47.2 % vs
+  40.4 %)**, and its TurboMQ/k is also higher (0.457 vs 0.411). k-means
   is better on TurboMQ/k (0.567) and k-means without noise is best (0.648).
-  Cohesion and BasicMQ are much lower for the AI (0.028 vs 0.21) only
+  Cohesion and BasicMQ are much lower for the AI (0.028 vs 0.23) only
   because intra-connectivity divides by Nᵢ²: large components can never be
   dense. These metrics are not comparable across very different k.
 * **Agreement.** The AI architecture agrees very little with all algorithmic
-  architectures (ARI ≈ 0.09–0.11) and even with the packages (0.07; ARI is
+  architectures (ARI ≈ 0.05–0.11) and even with the packages (0.07; ARI is
   low when the numbers of groups differ so much). ACDC and k-means agree with
-  each other only moderately (ARI 0.30 for A1 vs A3, 0.35 for A2 vs A4), and
-  each agrees with the packages at ARI ≈ 0.25–0.30.
+  each other only moderately (ARI 0.29 for A1 vs A3, 0.32 for A2 vs A4), and
+  each agrees with the packages at ARI ≈ 0.24–0.30.
 * **Different principles.** The AI groups by **responsibility and
   architectural role**. All provider adapters form one component, all
   vector-store adapters another, all auto-configuration a third. The
@@ -686,7 +700,8 @@ JNode's SIG measure depends on the graph's shape.
   classes are kept once.
 * **Tool changes.** JNode had to be patched (performance, identical output;
   precision, Jaccard ≥ 0.88 with the original where it worked), and 0.8.0 needed
-  a threshold fallback. ACDC is a third-party port, not the York original.
+  a threshold fallback. ACDC is a third-party port, not the York original,
+  and needed file-style class names to name its subsystems correctly (2.3).
 * **k-means.** The results depend on the feature representation (dependency
   profiles + SVD) and on the elbow choice of k. The silhouette would pick
   much finer clusterings (Figure 2).
@@ -710,240 +725,240 @@ Table 5 – Number of clusters (k).
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
-| 0.8.0 | 42 | 41 | 36 | 36 | 82 |
-| 1.0.0-M1 | 69 | 71 | 60 | 58 | 140 |
-| 1.0.0-M2 | 88 | 94 | 70 | 64 | 184 |
-| 1.0.0-M3 | 93 | 95 | 64 | 69 | 196 |
-| 1.0.0-M4 | 91 | 94 | 74 | 69 | 206 |
-| 1.0.0-M5 | 96 | 111 | 74 | 70 | 225 |
-| 1.0.0-M6 | 101 | 111 | 74 | 69 | 226 |
-| 1.0.0-M7 | 103 | 104 | 76 | 74 | 234 |
-| 1.0.0-M8 | 101 | 98 | 81 | 76 | 233 |
-| 1.0.0 | 105 | 103 | 81 | 76 | 221 |
-| 1.1.0-M1 | 107 | 104 | 76 | 76 | 244 |
-| 1.1.0-M2 | 114 | 110 | 84 | 74 | 258 |
-| 1.1.0-M3 | 116 | 111 | 84 | 67 | 263 |
-| 1.1.0-M4 | 117 | 113 | 94 | 74 | 264 |
-| 1.1.0 | 116 | 113 | 85 | 74 | 264 |
-| 2.0.0-M1 | 118 | 115 | 85 | 74 | 268 |
-| 2.0.0-M2 | 125 | 123 | 94 | 76 | 281 |
-| 2.0.0-M3 | 136 | 128 | 94 | 76 | 303 |
-| 2.0.0-M4 | 136 | 129 | 84 | 85 | 303 |
-| 2.0.0-M5 | 129 | 122 | 94 | 84 | 278 |
-| 2.0.0-M6 | 126 | 122 | 85 | 76 | 275 |
-| 2.0.0-M7 | 123 | 120 | 85 | 76 | 269 |
-| 2.0.0-M8 | 123 | 120 | 85 | 84 | 270 |
-| 2.0.0 | 120 | 115 | 85 | 76 | 274 |
-| 2.1.0-M1 | 124 | 120 | 84 | 76 | 282 |
+| 0.8.0 | 54 | 53 | 36 | 36 | 82 |
+| 1.0.0-M1 | 85 | 94 | 60 | 58 | 140 |
+| 1.0.0-M2 | 108 | 121 | 70 | 64 | 184 |
+| 1.0.0-M3 | 112 | 124 | 64 | 69 | 196 |
+| 1.0.0-M4 | 110 | 124 | 74 | 69 | 206 |
+| 1.0.0-M5 | 116 | 131 | 74 | 70 | 225 |
+| 1.0.0-M6 | 124 | 129 | 74 | 69 | 226 |
+| 1.0.0-M7 | 142 | 139 | 76 | 74 | 234 |
+| 1.0.0-M8 | 137 | 129 | 81 | 76 | 233 |
+| 1.0.0 | 141 | 134 | 81 | 76 | 221 |
+| 1.1.0-M1 | 143 | 134 | 76 | 76 | 244 |
+| 1.1.0-M2 | 153 | 142 | 84 | 74 | 258 |
+| 1.1.0-M3 | 156 | 145 | 84 | 67 | 263 |
+| 1.1.0-M4 | 156 | 147 | 94 | 74 | 264 |
+| 1.1.0 | 158 | 149 | 85 | 74 | 264 |
+| 2.0.0-M1 | 163 | 153 | 85 | 74 | 268 |
+| 2.0.0-M2 | 169 | 161 | 94 | 76 | 281 |
+| 2.0.0-M3 | 203 | 185 | 94 | 76 | 303 |
+| 2.0.0-M4 | 203 | 186 | 84 | 85 | 303 |
+| 2.0.0-M5 | 184 | 169 | 94 | 84 | 278 |
+| 2.0.0-M6 | 182 | 169 | 85 | 76 | 275 |
+| 2.0.0-M7 | 179 | 168 | 85 | 76 | 269 |
+| 2.0.0-M8 | 179 | 167 | 85 | 84 | 270 |
+| 2.0.0 | 178 | 167 | 85 | 76 | 274 |
+| 2.1.0-M1 | 185 | 174 | 84 | 76 | 282 |
 
 Table 7 – TurboMQ/k (normalised TurboMQ).
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
-| 0.8.0 | 0.495 | 0.586 | 0.558 | 0.686 | 0.254 |
-| 1.0.0-M1 | 0.465 | 0.673 | 0.529 | 0.831 | 0.235 |
-| 1.0.0-M2 | 0.442 | 0.645 | 0.536 | 0.855 | 0.212 |
-| 1.0.0-M3 | 0.435 | 0.674 | 0.545 | 0.859 | 0.204 |
-| 1.0.0-M4 | 0.430 | 0.679 | 0.514 | 0.844 | 0.196 |
-| 1.0.0-M5 | 0.410 | 0.665 | 0.523 | 0.835 | 0.187 |
-| 1.0.0-M6 | 0.411 | 0.615 | 0.516 | 0.795 | 0.196 |
-| 1.0.0-M7 | 0.413 | 0.522 | 0.511 | 0.645 | 0.194 |
-| 1.0.0-M8 | 0.412 | 0.527 | 0.490 | 0.660 | 0.189 |
-| 1.0.0 | 0.410 | 0.528 | 0.523 | 0.681 | 0.197 |
-| 1.1.0-M1 | 0.421 | 0.539 | 0.533 | 0.671 | 0.192 |
-| 1.1.0-M2 | 0.420 | 0.532 | 0.506 | 0.667 | 0.194 |
-| 1.1.0-M3 | 0.428 | 0.549 | 0.550 | 0.690 | 0.192 |
-| 1.1.0-M4 | 0.425 | 0.547 | 0.506 | 0.681 | 0.193 |
-| 1.1.0 | 0.428 | 0.559 | 0.513 | 0.675 | 0.192 |
-| 2.0.0-M1 | 0.426 | 0.561 | 0.529 | 0.694 | 0.197 |
-| 2.0.0-M2 | 0.420 | 0.560 | 0.485 | 0.699 | 0.202 |
-| 2.0.0-M3 | 0.444 | 0.556 | 0.531 | 0.659 | 0.194 |
-| 2.0.0-M4 | 0.444 | 0.554 | 0.519 | 0.657 | 0.194 |
-| 2.0.0-M5 | 0.450 | 0.549 | 0.539 | 0.631 | 0.202 |
-| 2.0.0-M6 | 0.455 | 0.553 | 0.537 | 0.656 | 0.201 |
-| 2.0.0-M7 | 0.456 | 0.553 | 0.548 | 0.623 | 0.197 |
-| 2.0.0-M8 | 0.455 | 0.552 | 0.539 | 0.643 | 0.197 |
-| 2.0.0 | 0.472 | 0.520 | 0.553 | 0.619 | 0.204 |
-| 2.1.0-M1 | 0.467 | 0.516 | 0.567 | 0.648 | 0.202 |
+| 0.8.0 | 0.457 | 0.533 | 0.558 | 0.686 | 0.254 |
+| 1.0.0-M1 | 0.440 | 0.622 | 0.529 | 0.831 | 0.235 |
+| 1.0.0-M2 | 0.421 | 0.606 | 0.536 | 0.855 | 0.212 |
+| 1.0.0-M3 | 0.420 | 0.629 | 0.545 | 0.859 | 0.204 |
+| 1.0.0-M4 | 0.415 | 0.625 | 0.514 | 0.844 | 0.196 |
+| 1.0.0-M5 | 0.397 | 0.629 | 0.523 | 0.835 | 0.187 |
+| 1.0.0-M6 | 0.396 | 0.582 | 0.516 | 0.795 | 0.196 |
+| 1.0.0-M7 | 0.402 | 0.506 | 0.511 | 0.645 | 0.194 |
+| 1.0.0-M8 | 0.405 | 0.524 | 0.490 | 0.660 | 0.189 |
+| 1.0.0 | 0.402 | 0.523 | 0.523 | 0.681 | 0.197 |
+| 1.1.0-M1 | 0.409 | 0.532 | 0.533 | 0.671 | 0.192 |
+| 1.1.0-M2 | 0.412 | 0.522 | 0.506 | 0.667 | 0.194 |
+| 1.1.0-M3 | 0.415 | 0.536 | 0.550 | 0.690 | 0.192 |
+| 1.1.0-M4 | 0.414 | 0.539 | 0.506 | 0.681 | 0.193 |
+| 1.1.0 | 0.419 | 0.550 | 0.513 | 0.675 | 0.192 |
+| 2.0.0-M1 | 0.414 | 0.549 | 0.529 | 0.694 | 0.197 |
+| 2.0.0-M2 | 0.410 | 0.549 | 0.485 | 0.699 | 0.202 |
+| 2.0.0-M3 | 0.404 | 0.500 | 0.531 | 0.659 | 0.194 |
+| 2.0.0-M4 | 0.404 | 0.499 | 0.519 | 0.657 | 0.194 |
+| 2.0.0-M5 | 0.407 | 0.480 | 0.539 | 0.631 | 0.202 |
+| 2.0.0-M6 | 0.409 | 0.481 | 0.537 | 0.656 | 0.201 |
+| 2.0.0-M7 | 0.410 | 0.478 | 0.548 | 0.623 | 0.197 |
+| 2.0.0-M8 | 0.409 | 0.479 | 0.539 | 0.643 | 0.197 |
+| 2.0.0 | 0.413 | 0.453 | 0.553 | 0.619 | 0.204 |
+| 2.1.0-M1 | 0.411 | 0.456 | 0.567 | 0.648 | 0.202 |
 
 Table 7b – TurboMQ.
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
-| 0.8.0 | 20.8 | 24.0 | 20.1 | 24.7 | 20.8 |
-| 1.0.0-M1 | 32.1 | 47.8 | 31.7 | 48.2 | 32.9 |
-| 1.0.0-M2 | 38.9 | 60.7 | 37.6 | 54.7 | 39.0 |
-| 1.0.0-M3 | 40.4 | 64.0 | 34.9 | 59.3 | 40.0 |
-| 1.0.0-M4 | 39.1 | 63.8 | 38.1 | 58.2 | 40.4 |
-| 1.0.0-M5 | 39.3 | 73.8 | 38.7 | 58.5 | 42.1 |
-| 1.0.0-M6 | 41.5 | 68.3 | 38.2 | 54.8 | 44.3 |
-| 1.0.0-M7 | 42.6 | 54.3 | 38.9 | 47.7 | 45.3 |
-| 1.0.0-M8 | 41.6 | 51.7 | 39.7 | 50.2 | 44.1 |
-| 1.0.0 | 43.1 | 54.4 | 42.4 | 51.8 | 43.5 |
-| 1.1.0-M1 | 45.0 | 56.1 | 40.5 | 51.0 | 46.8 |
-| 1.1.0-M2 | 47.9 | 58.5 | 42.5 | 49.3 | 50.0 |
-| 1.1.0-M3 | 49.6 | 61.0 | 46.2 | 46.2 | 50.5 |
-| 1.1.0-M4 | 49.7 | 61.9 | 47.6 | 50.4 | 51.1 |
-| 1.1.0 | 49.6 | 63.2 | 43.6 | 50.0 | 50.7 |
-| 2.0.0-M1 | 50.3 | 64.5 | 45.0 | 51.4 | 52.8 |
-| 2.0.0-M2 | 52.5 | 68.9 | 45.6 | 53.1 | 56.9 |
-| 2.0.0-M3 | 60.4 | 71.1 | 49.9 | 50.1 | 58.8 |
-| 2.0.0-M4 | 60.4 | 71.5 | 43.6 | 55.9 | 58.8 |
-| 2.0.0-M5 | 58.0 | 67.0 | 50.7 | 53.0 | 56.1 |
-| 2.0.0-M6 | 57.3 | 67.5 | 45.6 | 49.9 | 55.2 |
-| 2.0.0-M7 | 56.1 | 66.4 | 46.5 | 47.4 | 52.9 |
-| 2.0.0-M8 | 55.9 | 66.3 | 45.8 | 54.0 | 53.1 |
-| 2.0.0 | 56.7 | 59.8 | 47.0 | 47.1 | 55.8 |
-| 2.1.0-M1 | 57.9 | 62.0 | 47.6 | 49.2 | 56.9 |
+| 0.8.0 | 24.7 | 28.3 | 20.1 | 24.7 | 20.8 |
+| 1.0.0-M1 | 37.4 | 58.5 | 31.7 | 48.2 | 32.9 |
+| 1.0.0-M2 | 45.5 | 73.4 | 37.6 | 54.7 | 39.0 |
+| 1.0.0-M3 | 47.0 | 78.0 | 34.9 | 59.3 | 40.0 |
+| 1.0.0-M4 | 45.7 | 77.5 | 38.1 | 58.2 | 40.4 |
+| 1.0.0-M5 | 46.0 | 82.3 | 38.7 | 58.5 | 42.1 |
+| 1.0.0-M6 | 49.0 | 75.1 | 38.2 | 54.8 | 44.3 |
+| 1.0.0-M7 | 57.0 | 70.4 | 38.9 | 47.7 | 45.3 |
+| 1.0.0-M8 | 55.4 | 67.6 | 39.7 | 50.2 | 44.1 |
+| 1.0.0 | 56.7 | 70.1 | 42.4 | 51.8 | 43.5 |
+| 1.1.0-M1 | 58.5 | 71.2 | 40.5 | 51.0 | 46.8 |
+| 1.1.0-M2 | 63.0 | 74.1 | 42.5 | 49.3 | 50.0 |
+| 1.1.0-M3 | 64.7 | 77.7 | 46.2 | 46.2 | 50.5 |
+| 1.1.0-M4 | 64.5 | 79.2 | 47.6 | 50.4 | 51.1 |
+| 1.1.0 | 66.3 | 82.0 | 43.6 | 50.0 | 50.7 |
+| 2.0.0-M1 | 67.5 | 84.0 | 45.0 | 51.4 | 52.8 |
+| 2.0.0-M2 | 69.3 | 88.3 | 45.6 | 53.1 | 56.9 |
+| 2.0.0-M3 | 81.9 | 92.4 | 49.9 | 50.1 | 58.8 |
+| 2.0.0-M4 | 81.9 | 92.8 | 43.6 | 55.9 | 58.8 |
+| 2.0.0-M5 | 74.9 | 81.1 | 50.7 | 53.0 | 56.1 |
+| 2.0.0-M6 | 74.4 | 81.3 | 45.6 | 49.9 | 55.2 |
+| 2.0.0-M7 | 73.3 | 80.2 | 46.5 | 47.4 | 52.9 |
+| 2.0.0-M8 | 73.2 | 80.0 | 45.8 | 54.0 | 53.1 |
+| 2.0.0 | 73.5 | 75.6 | 47.0 | 47.1 | 55.8 |
+| 2.1.0-M1 | 76.1 | 79.3 | 47.6 | 49.2 | 56.9 |
 
 Table 7c – BasicMQ.
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
-| 0.8.0 | 0.1993 | 0.2054 | 0.1673 | 0.1936 | 0.1392 |
-| 1.0.0-M1 | 0.2136 | 0.2114 | 0.1633 | 0.2016 | 0.1429 |
-| 1.0.0-M2 | 0.2188 | 0.2209 | 0.1536 | 0.1769 | 0.1360 |
-| 1.0.0-M3 | 0.2165 | 0.2132 | 0.1355 | 0.1795 | 0.1303 |
-| 1.0.0-M4 | 0.2078 | 0.2101 | 0.1447 | 0.1778 | 0.1332 |
-| 1.0.0-M5 | 0.2189 | 0.2233 | 0.1438 | 0.1746 | 0.1405 |
-| 1.0.0-M6 | 0.2208 | 0.2240 | 0.1284 | 0.1692 | 0.1478 |
-| 1.0.0-M7 | 0.2212 | 0.2194 | 0.1329 | 0.1487 | 0.1414 |
-| 1.0.0-M8 | 0.2178 | 0.2172 | 0.1384 | 0.1566 | 0.1371 |
-| 1.0.0 | 0.2245 | 0.2223 | 0.1374 | 0.1597 | 0.1426 |
-| 1.1.0-M1 | 0.2193 | 0.2230 | 0.1342 | 0.1540 | 0.1402 |
-| 1.1.0-M2 | 0.2201 | 0.2211 | 0.1215 | 0.1468 | 0.1399 |
-| 1.1.0-M3 | 0.2173 | 0.2160 | 0.1280 | 0.1349 | 0.1379 |
-| 1.1.0-M4 | 0.2181 | 0.2168 | 0.1318 | 0.1343 | 0.1394 |
-| 1.1.0 | 0.2145 | 0.2132 | 0.1232 | 0.1398 | 0.1385 |
-| 2.0.0-M1 | 0.2130 | 0.2114 | 0.1200 | 0.1352 | 0.1396 |
-| 2.0.0-M2 | 0.2113 | 0.2109 | 0.1191 | 0.1322 | 0.1440 |
-| 2.0.0-M3 | 0.2120 | 0.2106 | 0.1257 | 0.1274 | 0.1367 |
-| 2.0.0-M4 | 0.2120 | 0.2113 | 0.1167 | 0.1368 | 0.1367 |
-| 2.0.0-M5 | 0.2113 | 0.2145 | 0.1405 | 0.1540 | 0.1404 |
-| 2.0.0-M6 | 0.2099 | 0.2175 | 0.1301 | 0.1434 | 0.1394 |
-| 2.0.0-M7 | 0.2085 | 0.2172 | 0.1356 | 0.1423 | 0.1373 |
-| 2.0.0-M8 | 0.2087 | 0.2162 | 0.1334 | 0.1542 | 0.1375 |
-| 2.0.0 | 0.2068 | 0.2108 | 0.1353 | 0.1446 | 0.1398 |
-| 2.1.0-M1 | 0.2046 | 0.2040 | 0.1333 | 0.1451 | 0.1402 |
+| 0.8.0 | 0.2221 | 0.2260 | 0.1673 | 0.1936 | 0.1392 |
+| 1.0.0-M1 | 0.2291 | 0.2248 | 0.1633 | 0.2016 | 0.1429 |
+| 1.0.0-M2 | 0.2318 | 0.2326 | 0.1536 | 0.1769 | 0.1360 |
+| 1.0.0-M3 | 0.2286 | 0.2309 | 0.1355 | 0.1795 | 0.1303 |
+| 1.0.0-M4 | 0.2242 | 0.2261 | 0.1447 | 0.1778 | 0.1332 |
+| 1.0.0-M5 | 0.2319 | 0.2312 | 0.1438 | 0.1746 | 0.1405 |
+| 1.0.0-M6 | 0.2338 | 0.2299 | 0.1284 | 0.1692 | 0.1478 |
+| 1.0.0-M7 | 0.2304 | 0.2322 | 0.1329 | 0.1487 | 0.1414 |
+| 1.0.0-M8 | 0.2265 | 0.2316 | 0.1384 | 0.1566 | 0.1371 |
+| 1.0.0 | 0.2315 | 0.2352 | 0.1374 | 0.1597 | 0.1426 |
+| 1.1.0-M1 | 0.2304 | 0.2349 | 0.1342 | 0.1540 | 0.1402 |
+| 1.1.0-M2 | 0.2343 | 0.2374 | 0.1215 | 0.1468 | 0.1399 |
+| 1.1.0-M3 | 0.2319 | 0.2333 | 0.1280 | 0.1349 | 0.1379 |
+| 1.1.0-M4 | 0.2307 | 0.2334 | 0.1318 | 0.1343 | 0.1394 |
+| 1.1.0 | 0.2306 | 0.2330 | 0.1232 | 0.1398 | 0.1385 |
+| 2.0.0-M1 | 0.2284 | 0.2334 | 0.1200 | 0.1352 | 0.1396 |
+| 2.0.0-M2 | 0.2298 | 0.2319 | 0.1191 | 0.1322 | 0.1440 |
+| 2.0.0-M3 | 0.2329 | 0.2335 | 0.1257 | 0.1274 | 0.1367 |
+| 2.0.0-M4 | 0.2328 | 0.2339 | 0.1167 | 0.1368 | 0.1367 |
+| 2.0.0-M5 | 0.2349 | 0.2336 | 0.1405 | 0.1540 | 0.1404 |
+| 2.0.0-M6 | 0.2328 | 0.2356 | 0.1301 | 0.1434 | 0.1394 |
+| 2.0.0-M7 | 0.2318 | 0.2326 | 0.1356 | 0.1423 | 0.1373 |
+| 2.0.0-M8 | 0.2319 | 0.2349 | 0.1334 | 0.1542 | 0.1375 |
+| 2.0.0 | 0.2311 | 0.2347 | 0.1353 | 0.1446 | 0.1398 |
+| 2.1.0-M1 | 0.2294 | 0.2289 | 0.1333 | 0.1451 | 0.1402 |
 
 Table 8a – Cohesion (mean intra-connectivity).
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
-| 0.8.0 | 0.2038 | 0.2086 | 0.1719 | 0.1962 | 0.1470 |
-| 1.0.0-M1 | 0.2162 | 0.2128 | 0.1664 | 0.2024 | 0.1477 |
-| 1.0.0-M2 | 0.2208 | 0.2220 | 0.1558 | 0.1774 | 0.1394 |
-| 1.0.0-M3 | 0.2188 | 0.2142 | 0.1374 | 0.1799 | 0.1336 |
-| 1.0.0-M4 | 0.2102 | 0.2110 | 0.1472 | 0.1783 | 0.1365 |
-| 1.0.0-M5 | 0.2217 | 0.2243 | 0.1461 | 0.1751 | 0.1439 |
-| 1.0.0-M6 | 0.2235 | 0.2253 | 0.1310 | 0.1698 | 0.1512 |
-| 1.0.0-M7 | 0.2236 | 0.2209 | 0.1351 | 0.1500 | 0.1446 |
-| 1.0.0-M8 | 0.2201 | 0.2187 | 0.1411 | 0.1580 | 0.1403 |
-| 1.0.0 | 0.2269 | 0.2238 | 0.1399 | 0.1608 | 0.1460 |
-| 1.1.0-M1 | 0.2214 | 0.2245 | 0.1363 | 0.1552 | 0.1433 |
-| 1.1.0-M2 | 0.2222 | 0.2226 | 0.1235 | 0.1480 | 0.1427 |
-| 1.1.0-M3 | 0.2192 | 0.2174 | 0.1295 | 0.1359 | 0.1406 |
-| 1.1.0-M4 | 0.2200 | 0.2182 | 0.1341 | 0.1354 | 0.1421 |
-| 1.1.0 | 0.2164 | 0.2146 | 0.1255 | 0.1409 | 0.1412 |
-| 2.0.0-M1 | 0.2149 | 0.2127 | 0.1217 | 0.1361 | 0.1422 |
-| 2.0.0-M2 | 0.2132 | 0.2121 | 0.1209 | 0.1331 | 0.1465 |
-| 2.0.0-M3 | 0.2135 | 0.2118 | 0.1273 | 0.1287 | 0.1390 |
-| 2.0.0-M4 | 0.2135 | 0.2125 | 0.1184 | 0.1378 | 0.1390 |
-| 2.0.0-M5 | 0.2130 | 0.2158 | 0.1421 | 0.1553 | 0.1429 |
-| 2.0.0-M6 | 0.2115 | 0.2188 | 0.1318 | 0.1445 | 0.1419 |
-| 2.0.0-M7 | 0.2102 | 0.2185 | 0.1371 | 0.1437 | 0.1398 |
-| 2.0.0-M8 | 0.2104 | 0.2176 | 0.1356 | 0.1557 | 0.1401 |
-| 2.0.0 | 0.2084 | 0.2124 | 0.1368 | 0.1458 | 0.1422 |
-| 2.1.0-M1 | 0.2061 | 0.2054 | 0.1348 | 0.1462 | 0.1426 |
+| 0.8.0 | 0.2265 | 0.2295 | 0.1719 | 0.1962 | 0.1470 |
+| 1.0.0-M1 | 0.2322 | 0.2265 | 0.1664 | 0.2024 | 0.1477 |
+| 1.0.0-M2 | 0.2338 | 0.2338 | 0.1558 | 0.1774 | 0.1394 |
+| 1.0.0-M3 | 0.2307 | 0.2320 | 0.1374 | 0.1799 | 0.1336 |
+| 1.0.0-M4 | 0.2265 | 0.2273 | 0.1472 | 0.1783 | 0.1365 |
+| 1.0.0-M5 | 0.2346 | 0.2323 | 0.1461 | 0.1751 | 0.1439 |
+| 1.0.0-M6 | 0.2367 | 0.2313 | 0.1310 | 0.1698 | 0.1512 |
+| 1.0.0-M7 | 0.2332 | 0.2337 | 0.1351 | 0.1500 | 0.1446 |
+| 1.0.0-M8 | 0.2294 | 0.2332 | 0.1411 | 0.1580 | 0.1403 |
+| 1.0.0 | 0.2345 | 0.2367 | 0.1399 | 0.1608 | 0.1460 |
+| 1.1.0-M1 | 0.2330 | 0.2364 | 0.1363 | 0.1552 | 0.1433 |
+| 1.1.0-M2 | 0.2367 | 0.2389 | 0.1235 | 0.1480 | 0.1427 |
+| 1.1.0-M3 | 0.2342 | 0.2348 | 0.1295 | 0.1359 | 0.1406 |
+| 1.1.0-M4 | 0.2329 | 0.2348 | 0.1341 | 0.1354 | 0.1421 |
+| 1.1.0 | 0.2328 | 0.2344 | 0.1255 | 0.1409 | 0.1412 |
+| 2.0.0-M1 | 0.2308 | 0.2347 | 0.1217 | 0.1361 | 0.1422 |
+| 2.0.0-M2 | 0.2319 | 0.2332 | 0.1209 | 0.1331 | 0.1465 |
+| 2.0.0-M3 | 0.2347 | 0.2349 | 0.1273 | 0.1287 | 0.1390 |
+| 2.0.0-M4 | 0.2347 | 0.2352 | 0.1184 | 0.1378 | 0.1390 |
+| 2.0.0-M5 | 0.2367 | 0.2353 | 0.1421 | 0.1553 | 0.1429 |
+| 2.0.0-M6 | 0.2347 | 0.2372 | 0.1318 | 0.1445 | 0.1419 |
+| 2.0.0-M7 | 0.2338 | 0.2346 | 0.1371 | 0.1437 | 0.1398 |
+| 2.0.0-M8 | 0.2340 | 0.2366 | 0.1356 | 0.1557 | 0.1401 |
+| 2.0.0 | 0.2329 | 0.2364 | 0.1368 | 0.1458 | 0.1422 |
+| 2.1.0-M1 | 0.2311 | 0.2307 | 0.1348 | 0.1462 | 0.1426 |
 
 Table 8b – Coupling (mean inter-connectivity).
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
-| 0.8.0 | 0.00446 | 0.00313 | 0.00463 | 0.00251 | 0.00784 |
-| 1.0.0-M1 | 0.00265 | 0.00145 | 0.00305 | 0.00085 | 0.00474 |
-| 1.0.0-M2 | 0.00201 | 0.00111 | 0.00218 | 0.00046 | 0.00346 |
-| 1.0.0-M3 | 0.00224 | 0.00099 | 0.00198 | 0.00040 | 0.00325 |
-| 1.0.0-M4 | 0.00244 | 0.00094 | 0.00248 | 0.00048 | 0.00332 |
-| 1.0.0-M5 | 0.00280 | 0.00099 | 0.00231 | 0.00046 | 0.00336 |
-| 1.0.0-M6 | 0.00266 | 0.00128 | 0.00255 | 0.00061 | 0.00338 |
-| 1.0.0-M7 | 0.00237 | 0.00148 | 0.00215 | 0.00133 | 0.00325 |
-| 1.0.0-M8 | 0.00237 | 0.00159 | 0.00265 | 0.00140 | 0.00328 |
-| 1.0.0 | 0.00240 | 0.00156 | 0.00249 | 0.00110 | 0.00335 |
-| 1.1.0-M1 | 0.00213 | 0.00149 | 0.00213 | 0.00123 | 0.00314 |
-| 1.1.0-M2 | 0.00208 | 0.00150 | 0.00204 | 0.00127 | 0.00281 |
-| 1.1.0-M3 | 0.00194 | 0.00137 | 0.00155 | 0.00108 | 0.00273 |
-| 1.1.0-M4 | 0.00193 | 0.00140 | 0.00233 | 0.00112 | 0.00269 |
-| 1.1.0 | 0.00191 | 0.00135 | 0.00222 | 0.00106 | 0.00268 |
-| 2.0.0-M1 | 0.00186 | 0.00129 | 0.00168 | 0.00096 | 0.00259 |
-| 2.0.0-M2 | 0.00186 | 0.00122 | 0.00186 | 0.00087 | 0.00252 |
-| 2.0.0-M3 | 0.00149 | 0.00121 | 0.00156 | 0.00126 | 0.00231 |
-| 2.0.0-M4 | 0.00149 | 0.00121 | 0.00173 | 0.00099 | 0.00230 |
-| 2.0.0-M5 | 0.00166 | 0.00133 | 0.00169 | 0.00125 | 0.00249 |
-| 2.0.0-M6 | 0.00164 | 0.00132 | 0.00168 | 0.00113 | 0.00252 |
-| 2.0.0-M7 | 0.00166 | 0.00134 | 0.00148 | 0.00142 | 0.00258 |
-| 2.0.0-M8 | 0.00168 | 0.00134 | 0.00216 | 0.00140 | 0.00252 |
-| 2.0.0 | 0.00162 | 0.00156 | 0.00155 | 0.00126 | 0.00251 |
-| 2.1.0-M1 | 0.00154 | 0.00148 | 0.00155 | 0.00116 | 0.00242 |
+| 0.8.0 | 0.00438 | 0.00352 | 0.00463 | 0.00251 | 0.00784 |
+| 1.0.0-M1 | 0.00313 | 0.00175 | 0.00305 | 0.00085 | 0.00474 |
+| 1.0.0-M2 | 0.00201 | 0.00125 | 0.00218 | 0.00046 | 0.00346 |
+| 1.0.0-M3 | 0.00206 | 0.00112 | 0.00198 | 0.00040 | 0.00325 |
+| 1.0.0-M4 | 0.00231 | 0.00116 | 0.00248 | 0.00048 | 0.00332 |
+| 1.0.0-M5 | 0.00269 | 0.00113 | 0.00231 | 0.00046 | 0.00336 |
+| 1.0.0-M6 | 0.00283 | 0.00133 | 0.00255 | 0.00061 | 0.00338 |
+| 1.0.0-M7 | 0.00286 | 0.00148 | 0.00215 | 0.00133 | 0.00325 |
+| 1.0.0-M8 | 0.00288 | 0.00155 | 0.00265 | 0.00140 | 0.00328 |
+| 1.0.0 | 0.00296 | 0.00156 | 0.00249 | 0.00110 | 0.00335 |
+| 1.1.0-M1 | 0.00253 | 0.00151 | 0.00213 | 0.00123 | 0.00314 |
+| 1.1.0-M2 | 0.00244 | 0.00159 | 0.00204 | 0.00127 | 0.00281 |
+| 1.1.0-M3 | 0.00232 | 0.00149 | 0.00155 | 0.00108 | 0.00273 |
+| 1.1.0-M4 | 0.00225 | 0.00146 | 0.00233 | 0.00112 | 0.00269 |
+| 1.1.0 | 0.00219 | 0.00141 | 0.00222 | 0.00106 | 0.00268 |
+| 2.0.0-M1 | 0.00245 | 0.00137 | 0.00168 | 0.00096 | 0.00259 |
+| 2.0.0-M2 | 0.00215 | 0.00130 | 0.00186 | 0.00087 | 0.00252 |
+| 2.0.0-M3 | 0.00189 | 0.00137 | 0.00156 | 0.00126 | 0.00231 |
+| 2.0.0-M4 | 0.00189 | 0.00137 | 0.00173 | 0.00099 | 0.00230 |
+| 2.0.0-M5 | 0.00184 | 0.00164 | 0.00169 | 0.00125 | 0.00249 |
+| 2.0.0-M6 | 0.00189 | 0.00166 | 0.00168 | 0.00113 | 0.00252 |
+| 2.0.0-M7 | 0.00204 | 0.00194 | 0.00148 | 0.00142 | 0.00258 |
+| 2.0.0-M8 | 0.00203 | 0.00168 | 0.00216 | 0.00140 | 0.00252 |
+| 2.0.0 | 0.00184 | 0.00177 | 0.00155 | 0.00126 | 0.00251 |
+| 2.1.0-M1 | 0.00170 | 0.00181 | 0.00155 | 0.00116 | 0.00242 |
 
 Table 8c – Share of dependencies inside clusters.
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
-| 0.8.0 | 0.487 | 0.595 | 0.381 | 0.500 | 0.272 |
-| 1.0.0-M1 | 0.431 | 0.697 | 0.333 | 0.810 | 0.240 |
-| 1.0.0-M2 | 0.409 | 0.679 | 0.324 | 0.822 | 0.222 |
-| 1.0.0-M3 | 0.399 | 0.706 | 0.310 | 0.836 | 0.203 |
-| 1.0.0-M4 | 0.392 | 0.705 | 0.304 | 0.828 | 0.197 |
-| 1.0.0-M5 | 0.378 | 0.696 | 0.288 | 0.818 | 0.190 |
-| 1.0.0-M6 | 0.383 | 0.665 | 0.312 | 0.776 | 0.195 |
-| 1.0.0-M7 | 0.406 | 0.521 | 0.316 | 0.466 | 0.202 |
-| 1.0.0-M8 | 0.421 | 0.539 | 0.300 | 0.472 | 0.203 |
-| 1.0.0 | 0.389 | 0.521 | 0.323 | 0.474 | 0.198 |
-| 1.1.0-M1 | 0.402 | 0.533 | 0.324 | 0.480 | 0.200 |
-| 1.1.0-M2 | 0.401 | 0.529 | 0.310 | 0.481 | 0.201 |
-| 1.1.0-M3 | 0.404 | 0.539 | 0.327 | 0.496 | 0.201 |
-| 1.1.0-M4 | 0.408 | 0.538 | 0.298 | 0.485 | 0.200 |
-| 1.1.0 | 0.402 | 0.540 | 0.306 | 0.488 | 0.202 |
-| 2.0.0-M1 | 0.399 | 0.539 | 0.325 | 0.503 | 0.201 |
-| 2.0.0-M2 | 0.390 | 0.538 | 0.275 | 0.519 | 0.200 |
-| 2.0.0-M3 | 0.414 | 0.544 | 0.339 | 0.504 | 0.200 |
-| 2.0.0-M4 | 0.415 | 0.544 | 0.341 | 0.516 | 0.200 |
-| 2.0.0-M5 | 0.436 | 0.538 | 0.351 | 0.501 | 0.215 |
-| 2.0.0-M6 | 0.442 | 0.545 | 0.358 | 0.521 | 0.219 |
-| 2.0.0-M7 | 0.446 | 0.549 | 0.384 | 0.497 | 0.218 |
-| 2.0.0-M8 | 0.445 | 0.550 | 0.369 | 0.511 | 0.218 |
-| 2.0.0 | 0.467 | 0.520 | 0.397 | 0.493 | 0.225 |
-| 2.1.0-M1 | 0.472 | 0.526 | 0.401 | 0.518 | 0.226 |
+| 0.8.0 | 0.473 | 0.574 | 0.381 | 0.500 | 0.272 |
+| 1.0.0-M1 | 0.413 | 0.679 | 0.333 | 0.810 | 0.240 |
+| 1.0.0-M2 | 0.402 | 0.664 | 0.324 | 0.822 | 0.222 |
+| 1.0.0-M3 | 0.392 | 0.690 | 0.310 | 0.836 | 0.203 |
+| 1.0.0-M4 | 0.387 | 0.688 | 0.304 | 0.828 | 0.197 |
+| 1.0.0-M5 | 0.371 | 0.683 | 0.288 | 0.818 | 0.190 |
+| 1.0.0-M6 | 0.374 | 0.653 | 0.312 | 0.776 | 0.195 |
+| 1.0.0-M7 | 0.364 | 0.463 | 0.316 | 0.466 | 0.202 |
+| 1.0.0-M8 | 0.378 | 0.483 | 0.300 | 0.472 | 0.203 |
+| 1.0.0 | 0.345 | 0.465 | 0.323 | 0.474 | 0.198 |
+| 1.1.0-M1 | 0.360 | 0.490 | 0.324 | 0.480 | 0.200 |
+| 1.1.0-M2 | 0.360 | 0.487 | 0.310 | 0.481 | 0.201 |
+| 1.1.0-M3 | 0.363 | 0.495 | 0.327 | 0.496 | 0.201 |
+| 1.1.0-M4 | 0.367 | 0.495 | 0.298 | 0.485 | 0.200 |
+| 1.1.0 | 0.366 | 0.499 | 0.306 | 0.488 | 0.202 |
+| 2.0.0-M1 | 0.360 | 0.495 | 0.325 | 0.503 | 0.201 |
+| 2.0.0-M2 | 0.353 | 0.495 | 0.275 | 0.519 | 0.200 |
+| 2.0.0-M3 | 0.358 | 0.460 | 0.339 | 0.504 | 0.200 |
+| 2.0.0-M4 | 0.358 | 0.461 | 0.341 | 0.516 | 0.200 |
+| 2.0.0-M5 | 0.382 | 0.457 | 0.351 | 0.501 | 0.215 |
+| 2.0.0-M6 | 0.385 | 0.457 | 0.358 | 0.521 | 0.219 |
+| 2.0.0-M7 | 0.387 | 0.459 | 0.384 | 0.497 | 0.218 |
+| 2.0.0-M8 | 0.386 | 0.459 | 0.369 | 0.511 | 0.218 |
+| 2.0.0 | 0.400 | 0.434 | 0.397 | 0.493 | 0.225 |
+| 2.1.0-M1 | 0.404 | 0.440 | 0.401 | 0.518 | 0.226 |
 
 Table 8d – Stability (ARI with the previous version).
 
 | Version (vs previous) | A1 | A2 | A3 | A4 |
 |---|---|---|---|---|
-| 1.0.0-M1 | 0.6726 | 0.7175 | 0.6358 | 0.4951 |
-| 1.0.0-M2 | 0.6443 | 0.9209 | 0.7817 | 0.8591 |
-| 1.0.0-M3 | 0.8284 | 0.8431 | 0.7896 | 0.8298 |
-| 1.0.0-M4 | 0.7671 | 0.9622 | 0.7726 | 0.881 |
-| 1.0.0-M5 | 0.8847 | 0.9442 | 0.7861 | 0.8931 |
-| 1.0.0-M6 | 0.9661 | 0.9525 | 0.8272 | 0.8005 |
-| 1.0.0-M7 | 0.6516 | 0.7512 | 0.748 | 0.6638 |
-| 1.0.0-M8 | 0.7383 | 0.9294 | 0.7786 | 0.8293 |
-| 1.0.0 | 0.8561 | 0.9596 | 0.7714 | 0.8489 |
-| 1.1.0-M1 | 0.9677 | 0.9748 | 0.8017 | 0.8359 |
-| 1.1.0-M2 | 0.9663 | 0.9944 | 0.7668 | 0.8473 |
-| 1.1.0-M3 | 0.9984 | 0.9982 | 0.805 | 0.8612 |
-| 1.1.0-M4 | 0.9581 | 0.9957 | 0.7612 | 0.8275 |
-| 1.1.0 | 0.9392 | 0.9405 | 0.8027 | 0.8213 |
-| 2.0.0-M1 | 0.9693 | 0.9554 | 0.7729 | 0.8334 |
-| 2.0.0-M2 | 0.9709 | 0.9959 | 0.7775 | 0.8671 |
-| 2.0.0-M3 | 0.8862 | 0.9581 | 0.7419 | 0.8148 |
-| 2.0.0-M4 | 1.0 | 0.9997 | 0.7561 | 0.8262 |
-| 2.0.0-M5 | 0.8192 | 0.8515 | 0.7644 | 0.8118 |
-| 2.0.0-M6 | 0.9828 | 0.9846 | 0.7923 | 0.8275 |
-| 2.0.0-M7 | 0.9678 | 0.9863 | 0.7956 | 0.824 |
-| 2.0.0-M8 | 0.9869 | 0.9836 | 0.8029 | 0.8191 |
-| 2.0.0 | 0.9254 | 0.9111 | 0.7359 | 0.7874 |
-| 2.1.0-M1 | 0.894 | 0.896 | 0.78 | 0.8236 |
+| 1.0.0-M1 | 0.6248 | 0.7525 | 0.6358 | 0.4951 |
+| 1.0.0-M2 | 0.6323 | 0.9154 | 0.7817 | 0.8591 |
+| 1.0.0-M3 | 0.8247 | 0.8562 | 0.7896 | 0.8298 |
+| 1.0.0-M4 | 0.7508 | 0.9716 | 0.7726 | 0.881 |
+| 1.0.0-M5 | 0.8842 | 0.9389 | 0.7861 | 0.8931 |
+| 1.0.0-M6 | 0.9636 | 0.9549 | 0.8272 | 0.8005 |
+| 1.0.0-M7 | 0.6069 | 0.7257 | 0.748 | 0.6638 |
+| 1.0.0-M8 | 0.6705 | 0.9302 | 0.7786 | 0.8293 |
+| 1.0.0 | 0.813 | 0.9369 | 0.7714 | 0.8489 |
+| 1.1.0-M1 | 0.9617 | 0.963 | 0.8017 | 0.8359 |
+| 1.1.0-M2 | 0.9722 | 0.9953 | 0.7668 | 0.8473 |
+| 1.1.0-M3 | 0.9959 | 0.9944 | 0.805 | 0.8612 |
+| 1.1.0-M4 | 0.9627 | 0.9811 | 0.7612 | 0.8275 |
+| 1.1.0 | 0.9676 | 0.9627 | 0.8027 | 0.8213 |
+| 2.0.0-M1 | 0.9892 | 0.9764 | 0.7729 | 0.8334 |
+| 2.0.0-M2 | 0.9513 | 0.9932 | 0.7775 | 0.8671 |
+| 2.0.0-M3 | 0.8653 | 0.981 | 0.7419 | 0.8148 |
+| 2.0.0-M4 | 1.0 | 0.9994 | 0.7561 | 0.8262 |
+| 2.0.0-M5 | 0.8819 | 0.8888 | 0.7644 | 0.8118 |
+| 2.0.0-M6 | 0.9833 | 0.9883 | 0.7923 | 0.8275 |
+| 2.0.0-M7 | 0.9603 | 0.9894 | 0.7956 | 0.824 |
+| 2.0.0-M8 | 0.9887 | 0.9842 | 0.8029 | 0.8191 |
+| 2.0.0 | 0.9449 | 0.9071 | 0.7359 | 0.7874 |
+| 2.1.0-M1 | 0.9087 | 0.9356 | 0.78 | 0.8236 |
 
 Table 9 – Module changes per release.
 
