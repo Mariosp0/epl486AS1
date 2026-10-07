@@ -20,6 +20,8 @@ PROJECT=guava scripts/run_tools.sh            # or: PROJECT=guava scripts/run_jn
 PROJECT=guava python3 scripts/recover.py
 PROJECT=guava python3 scripts/acdc_params.py
 PROJECT=guava python3 scripts/noise_fanin.py
+PROJECT=guava python3 scripts/lecture_metrics.py   # MoJoFM, Bunch vs JNode, smells, deps added/removed
+PROJECT=guava python3 scripts/activity.py <guava clone>
 python3 guava/scripts/package_changes.py
 PROJECT=guava python3 scripts/ai_inputs.py
 PROJECT=guava python3 scripts/ai_eval.py

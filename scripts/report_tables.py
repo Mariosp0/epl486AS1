@@ -93,7 +93,7 @@ def main():
                      f"{mean(a, 'turbo_mq_norm'):.3f}", f"{mean(a, 'intra_ratio'):.3f}",
                      f"{mean(a, 'ari_vs_packages'):.3f}"])
     t["TABLE_MEANS"] = table(["Architecture", "k", "Largest cluster", "Cohesion", "Coupling",
-                              "BasicMQ", "TurboMQ", "TurboMQ/k", "Intra deps",
+                              "MQ (course)", "TurboMQ", "TurboMQ/k", "Intra deps",
                               "ARI vs packages"], rows)
 
     rows = [[r["to"]] + [r[a] for a in ("A1", "A2", "A3", "A4")] for r in stab]
@@ -109,7 +109,7 @@ def main():
         rows.append([name, m["clusters"], m["max_cluster"], m["cohesion"], m["coupling"],
                      m["basic_mq"], m["turbo_mq"], m["turbo_mq_norm"], m["intra_ratio"]])
     t["TABLE_AI"] = table([f"Architecture ({latest})", "k", "Largest", "Cohesion", "Coupling",
-                           "BasicMQ", "TurboMQ", "TurboMQ/k", "Intra deps"], rows)
+                           "MQ (course)", "TurboMQ", "TurboMQ/k", "Intra deps"], rows)
     t["TABLE_AI_ARI"] = table(["", "A1", "A2", "A3", "A4", "Packages"],
                               [[r["arch"]] + [r[f"ari_vs_{a}"] for a in ("A1", "A2", "A3", "A4", "PKG")]
                                for r in ai])
@@ -133,6 +133,55 @@ def main():
                  r["classes_removed"]] for r in read(pcp)]
         t["TABLE_PKGCHANGES"] = table(["Version", "Packages", "Pkgs added", "Pkgs removed",
                                        "Classes added", "Classes removed"], rows)
+
+    def opt(name):
+        p = os.path.join(RESULTS, name)
+        return read(p) if os.path.exists(p) else None
+
+    rows = opt("mojofm.csv")
+    if rows:
+        t["TABLE_MOJO"] = table(["Version", "A1 → PKG", "A2 → PKG", "A3 → PKG", "A4 → PKG"],
+                                [[r["version"], r["A1_vs_PKG"], r["A2_vs_PKG"], r["A3_vs_PKG"],
+                                  r["A4_vs_PKG"]] for r in rows])
+        last = rows[-1]
+        t["TABLE_MOJO_AI"] = table(["MoJoFM (%) to the AI architecture", "A1", "A2", "A3", "A4",
+                                    "Packages"],
+                                   [[latest] + [last[f"{a}_vs_AI"] for a in
+                                                ("A1", "A2", "A3", "A4", "PKG")]])
+    rows = opt("mojofm_stability.csv")
+    if rows:
+        t["TABLE_MOJO_STAB"] = table(["Version (vs previous)", "A1", "A2", "A3", "A4"],
+                                     [[r["to"], r["A1"], r["A2"], r["A3"], r["A4"]] for r in rows])
+    rows = opt("bunch_noise.csv")
+    if rows:
+        t["TABLE_BUNCH"] = table(["Version", "Bunch (>3·avg)", "JNode", "Both", "Jaccard",
+                                  "MQ System", "MQ JNode", "MQ Bunch", "MoJoFM System",
+                                  "MoJoFM JNode", "MoJoFM Bunch"],
+                                 [[r["version"], r["bunch_noise"], r["jnode_noise"], r["common"],
+                                   r["jaccard"], f"{float(r['mq_A1_system']):.3f}",
+                                   f"{float(r['mq_A2_jnode']):.3f}", f"{float(r['mq_A2_bunch']):.3f}",
+                                   r["mojofm_A1_system"], r["mojofm_A2_jnode"], r["mojofm_A2_bunch"]]
+                                  for r in rows])
+    rows = opt("smells.csv")
+    if rows:
+        t["TABLE_SMELLS"] = table(["Version", "Cyclic pkgs %", "Cyclic classes %", "Hub-like %",
+                                   "Unstable dep. %", "God comp.", "God components"],
+                                  [[r["version"], r["cyclic_packages_pct"], r["cyclic_classes_pct"],
+                                    r["hub_like_pct"], r["unstable_dep_pct"], r["god_components"],
+                                    " ".join(n.replace("org.springframework.ai.", "").replace(
+                                        "com.google.", "") for n in r["god_component_names"].split()[:6])
+                                    + (" …" if len(r["god_component_names"].split()) > 6 else "")]
+                                   for r in rows])
+    rows = opt("dependency_changes.csv")
+    if rows:
+        t["TABLE_DEPCHANGES"] = table(["Version", "Dependencies", "Added", "Removed"],
+                                      [[r["to"], r["dependencies"], r["added"], r["removed"]]
+                                       for r in rows])
+    rows = opt("activity.csv")
+    if rows:
+        t["TABLE_ACTIVITY"] = table(["From", "To", "Days", "Commits", "Authors", "Commits/month"],
+                                    [[r["from"], r["to"], r["days"], r["commits"], r["authors"],
+                                      r["commits_per_month"]] for r in rows])
 
     src = open(os.path.join(PROJECT_DIR, "report", "report_src.md")).read()
     missing = set(re.findall(r"\{\{(\w+)\}\}", src)) - set(t)

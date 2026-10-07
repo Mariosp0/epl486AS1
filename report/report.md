@@ -128,7 +128,7 @@ GitHub tags ─► version selection ─► Maven BOM ─► module jars ─► 
                                 │      │               │        │
                              ACDC(A1) k-means(A3)   ACDC(A2) k-means(A4)
                                 └──────┴─── metrics ───┴────────┘
-                         cohesion · coupling · BasicMQ · TurboMQ · stability
+                         cohesion · coupling · MQ · MoJoFM · stability
 ```
 *Figure 1 – Analysis pipeline.*
 
@@ -254,19 +254,56 @@ for the small 0.8.0). The resulting k grows from 36 (0.8.0) to 84 (A3) /
 
 ## 2.6 Quality metrics (3.5)
 
-For a clustering into k clusters, with μᵢ the edges inside cluster i (size
-Nᵢ) and εᵢⱼ the edges between clusters i and j (directed, unweighted graph):
+For a clustering into k clusters, with μᵢ the dependencies inside cluster i
+(Nᵢ classes) and εᵢⱼ the dependencies between clusters i and j (directed,
+unweighted class graph), we use the definitions of the course (Lecture 6–7,
+"Ποια θεωρείται καλή διάτμηση"):
 
-* **Cohesion** – mean *intra-connectivity* Aᵢ = μᵢ / Nᵢ² (Mancoridis et al., 1998).
-* **Coupling** – mean *inter-connectivity* Eᵢⱼ = εᵢⱼ / (2·Nᵢ·Nⱼ) over all pairs.
-* **BasicMQ** = cohesion − coupling, in [−1, 1].
-* **TurboMQ** = Σᵢ CFᵢ with CFᵢ = 2μᵢ / (2μᵢ + εᵢ), where εᵢ counts all edges
-  crossing the border of cluster i (Mitchell & Mancoridis, 2006). TurboMQ
-  grows with k, so we also report **TurboMQ/k**, the mean cluster factor in
-  [0, 1], to compare clusterings with different k.
-* **Intra deps** – the share of all dependencies that stay inside a cluster.
-* **Stability** – adjusted Rand index (ARI) between the clusterings of two
-  consecutive versions, over the classes present in both.
+* **Cohesion** (intra-connectivity) Aᵢ = μᵢ / Nᵢ². The lecture allows
+  μᵢ/Nᵢ² or μᵢ/(Nᵢ(Nᵢ−1)). We use Nᵢ² because it is defined for one-class
+  clusters (packages and ACDC produce some). We report the mean over clusters.
+* **Coupling** (inter-connectivity) Eᵢⱼ = εᵢⱼ / (2·Nᵢ·Nⱼ), averaged over all
+  cluster pairs.
+* **MQ – Modularization Quality** (course definition, Mancoridis et al. 1998):
+  MQ = (1/k)·ΣAᵢ − (2/(k(k−1)))·ΣEᵢⱼ, in [−1, 1]. This is the **main quality
+  measure** of the assignment. Because Aᵢ divides by Nᵢ², MQ favours many
+  small, dense clusters, so it is only comparable between architectures
+  with a similar number of clusters.
+* Supplementary measures, independent of k: **TurboMQ/k**, the mean cluster
+  factor 2μᵢ/(2μᵢ+εᵢ) of the later Bunch MQ (Mitchell & Mancoridis 2006), where
+  εᵢ counts all dependencies crossing the border of cluster i; and **intra
+  deps**, the share of all dependencies that stay inside a cluster.
+  TurboMQ (the sum, which grows with k) is given in the appendix.
+
+## 2.7 Additional analyses from the lectures
+
+* **MoJoFM** (Lecture 6–7): MoJoFM(A, R) = (1 − mno(A,R) / max mno(·,R)) · 100 %,
+  where mno is the minimum number of *Move* and *Join* operations that turn
+  architecture A into reference R (100 % = identical). It is computed with the
+  original MoJo 2.0 implementation (`tools/mojo.jar`). The system has no
+  expert ("ground-truth") architecture, so we use the developers' **package
+  structure** as the reference for every version and, for the latest version,
+  also the **AI architecture** of Phase 4. MoJoFM between the architectures
+  of consecutive versions measures **architectural stability**; we also report
+  the adjusted Rand index (ARI).
+* **Omnipresent classes with the Bunch rule** (Lecture 6–7): in-degree
+  > 3 × average in-degree. We compare it with JNode (Constantinou et al. 2015),
+  and, as in the lecture's comparison of "System", "Noise" and "Bunch", we
+  measure how close ACDC gets to the reference architecture without each set.
+* **Architectural smells and their evolution** (Lecture 5; Fontana et al.
+  2016, Sas et al. 2019), each normalised by the number of classes or packages:
+  *cyclic dependency* (packages/classes in a dependency cycle, i.e. a
+  strongly connected component of size > 1, found by depth-first search);
+  *hub-like dependency* (classes with fan-in and fan-out above the system
+  medians and |fan-in − fan-out| < 0.25·(fan-in + fan-out)); *unstable
+  dependency* (packages, instability I = Ce/(Ca+Ce), of which more than 30 %
+  of the package dependencies point to less stable packages – the Arcan
+  threshold); *god component* (packages with more classes than mean + 2σ of
+  the package sizes, since the lecture leaves the threshold open).
+* **Lehman's laws** (Lecture 1–2): besides size and dependency growth, we count
+  the **dependencies added and removed** per version (as in the lecture's
+  Eclipse example for law II) and the **commits per month** between the
+  analysed releases (law IV, conservation of organisational stability).
 
 # 3. Results and discussion
 
@@ -393,7 +430,7 @@ Two observations need care:
 
 Table 4 – Mean over the 25 versions.
 
-| Architecture | k | Largest cluster | Cohesion | Coupling | BasicMQ | TurboMQ | TurboMQ/k | Intra deps | ARI vs packages |
+| Architecture | k | Largest cluster | Cohesion | Coupling | MQ (course) | TurboMQ | TurboMQ/k | Intra deps | ARI vs packages |
 |---|---|---|---|---|---|---|---|---|---|
 | A1 ACDC (full) | 149 | 48 | 0.2329 | 0.00238 | 0.2305 | 61.1 | 0.412 | 0.380 | 0.244 |
 | A2 ACDC (no noise) | 144 | 26 | 0.2338 | 0.00157 | 0.2322 | 76.0 | 0.535 | 0.525 | 0.303 |
@@ -414,16 +451,24 @@ singletons (1.7 per version on average; OrphanAdoption assigns orphans to
 the subsystem they depend on most). The package decomposition has ~240
 packages, 54 of them with a single class (Table 4).
 
-**Quality.** In every version and for every metric, the algorithmic
-architectures are **far more modular than the package structure**. On
-average 38 % (A1) and 33 % (A3) of the dependencies stay inside a cluster,
-against 21 % inside a package. TurboMQ/k is 0.41–0.70 vs 0.20. Spring AI's
+**Quality by the course MQ.** ACDC has by far the highest MQ in every
+version (0.22–0.24; mean 0.231 for A1 and 0.232 for A2). k-means (0.135 /
+0.155) and the package structure (0.139) score much lower. MQ is dominated by
+its cohesion term (0.23 for ACDC vs 0.14–0.16), while all coupling terms are
+≈ 0.002. ACDC's many small, dense subgraph clusters (5–6 classes on average)
+are exactly what MQ rewards. By MQ, k-means is not better than the packages.
+
+**Quality by the k-independent measures.** On TurboMQ/k and on the share of
+internal dependencies, all algorithmic architectures are **far more modular
+than the package structure**. On average 38 % (A1) and 33 % (A3) of the
+dependencies stay inside a cluster, against 21 % inside a package, and
+TurboMQ/k is 0.41–0.70 vs 0.20. Spring AI's
 packages are organised by *feature* (`chat.prompt`, `chat.messages`,
 `chat.model`, ...) and by *vendor* (`openai`, `openai.api`, ...), and
 features are used across packages. The recovery algorithms group classes
 by *collaboration*.
 
-* **ACDC vs k-means.** ACDC has the higher cohesion and BasicMQ (0.23 vs
+* **ACDC vs k-means.** ACDC has the higher cohesion and MQ (0.23 vs
   0.13–0.15) because its many small subgraph clusters are dense. k-means has
   the higher TurboMQ/k (0.53 vs 0.41 on the full graph) and fewer, more
   balanced clusters. ACDC keeps slightly more dependencies inside clusters on
@@ -431,7 +476,10 @@ by *collaboration*.
 * **Effect of noise removal (A1→A2, A3→A4).** Removing the noise classes
   raises TurboMQ/k by **+0.12 (ACDC) and +0.18 (k-means)**, the intra-cluster
   share from 38 → 53 % and 33 → 57 %, and lowers coupling by a third (ACDC)
-  to a half (k-means). It also
+  to a half (k-means). The course MQ hardly changes (A1 0.231 → A2 0.232;
+  A3 0.135 → A4 0.155), because removing classes does not change how dense
+  the small clusters are. The benefit shows in the k-independent measures and
+  in the distance to the package structure (MoJoFM, 3.6). It also
   makes the clusterings more stable over time (3.5). Hub classes such as
   `Document` or `ChatOptions` connect almost every cluster to every other one;
   without them the true subsystems separate. The effect is strongest for
@@ -532,6 +580,259 @@ deterministic and local, so a release changes only the clusters it touches.
 k-means re-partitions the whole space whenever k or the embedding changes.
 For evolution studies ACDC therefore gives more interpretable diffs.
 
+## 3.6 Distance to the reference architecture (MoJoFM)
+
+![Figure 14 – MoJoFM of A1–A4 to the package structure.](../results/figures/mojofm_pkg.png)
+
+![Figure 15 – MoJoFM between consecutive versions.](../results/figures/mojofm_stability.png)
+
+Spring AI has no expert-validated architecture, so, following the lecture's
+methodology, we measure how far each recovered architecture is from a
+reference architecture: the developers' package structure (all versions)
+and the AI architecture (latest version).
+
+* **To the packages** (Table 13): ACDC is closer than k-means (mean MoJoFM
+  45.7 % for A1 vs 38.6 % for A3), and **removing the noise classes brings
+  both closer** (A2 50.9 %, A4 41.8 %). This is the effect the lecture reports
+  for the noise-removal technique (slide 49). The gain is largest in
+  1.0.0-M1…M6 (A2 up to 61 %), where JNode's noise set contained the real
+  hubs. Over time k-means drifts away from the packages (≈ 50 % → 36–40 %)
+  while ACDC stays at 43–48 %. As the system grows, connectivity-based
+  clusters cut across Spring AI's feature/vendor packages more and more.
+* **To the AI architecture** (latest version, Table 14): the package
+  structure is closest (73 %), then k-means (65 %), then ACDC (54–55 %).
+  k-means' fewer, larger clusters are easier to merge into the AI's 12
+  components than ACDC's 185 small ones. (MoJoFM is asymmetric: in the
+  other direction, turning the 12 AI components into 282 packages needs many
+  moves, and MoJoFM(AI → packages) is only 12 %.)
+* **Stability** (Table 15): consecutive ACDC architectures are almost the same
+  (mean MoJoFM 95.5 % for A1, 96.5 % for A2; lowest 83 % at 1.0.0-M7, the
+  module split). k-means changes much more (84–87 %). This confirms the ARI
+  result of 3.5.
+
+Table 13 – MoJoFM (%) of the recovered architectures to the package structure.
+
+| Version | A1 → PKG | A2 → PKG | A3 → PKG | A4 → PKG |
+|---|---|---|---|---|
+| 0.8.0 | 47.6 | 50.2 | 51.29 | 50.2 |
+| 1.0.0-M1 | 45.81 | 61.3 | 45.81 | 54.24 |
+| 1.0.0-M2 | 45.74 | 59.34 | 44.16 | 50.31 |
+| 1.0.0-M3 | 44.15 | 54.88 | 41.33 | 48.25 |
+| 1.0.0-M4 | 42.72 | 52.26 | 41.87 | 46.53 |
+| 1.0.0-M5 | 44.84 | 54.87 | 36.59 | 46.14 |
+| 1.0.0-M6 | 45.61 | 58.27 | 37.79 | 47.18 |
+| 1.0.0-M7 | 46.19 | 49.27 | 37.56 | 40.55 |
+| 1.0.0-M8 | 46.04 | 48.11 | 38.65 | 39.97 |
+| 1.0.0 | 47.9 | 50.78 | 38.97 | 40.47 |
+| 1.1.0-M1 | 46.37 | 49.04 | 36.59 | 40.59 |
+| 1.1.0-M2 | 46.87 | 49.71 | 37.19 | 39.57 |
+| 1.1.0-M3 | 46.2 | 48.89 | 36.98 | 36.53 |
+| 1.1.0-M4 | 45.99 | 49.25 | 39.21 | 38.1 |
+| 1.1.0 | 46.33 | 50.14 | 38.31 | 37.26 |
+| 2.0.0-M1 | 45.91 | 49.28 | 35.66 | 38.93 |
+| 2.0.0-M2 | 46.64 | 50.44 | 35.29 | 38.92 |
+| 2.0.0-M3 | 45.14 | 48.07 | 36.17 | 37.27 |
+| 2.0.0-M4 | 45.19 | 48.46 | 33.71 | 38.66 |
+| 2.0.0-M5 | 46.6 | 49.01 | 38.35 | 41.21 |
+| 2.0.0-M6 | 45.78 | 48.56 | 36.81 | 38.45 |
+| 2.0.0-M7 | 45.17 | 48.1 | 36.9 | 38.23 |
+| 2.0.0-M8 | 45.14 | 48.35 | 36.79 | 40.51 |
+| 2.0.0 | 44.99 | 47.78 | 36.99 | 37.9 |
+| 2.1.0-M1 | 44.74 | 47.16 | 35.94 | 39.4 |
+
+Table 14 – MoJoFM (%) to the AI architecture (latest version).
+
+| MoJoFM (%) to the AI architecture | A1 | A2 | A3 | A4 | Packages |
+|---|---|---|---|---|---|
+| 2.1.0-M1 | 53.69 | 55.13 | 65.44 | 65.4 | 73.11 |
+
+Table 15 – MoJoFM (%) between consecutive versions.
+
+| Version (vs previous) | A1 | A2 | A3 | A4 |
+|---|---|---|---|---|
+| 1.0.0-M1 | 85.53 | 87.58 | 78.57 | 67.3 |
+| 1.0.0-M2 | 86.88 | 94.72 | 85.52 | 88.2 |
+| 1.0.0-M3 | 93.27 | 91.97 | 85.55 | 90.27 |
+| 1.0.0-M4 | 95.52 | 97.5 | 88.24 | 92.34 |
+| 1.0.0-M5 | 94.49 | 97.15 | 85.98 | 92.8 |
+| 1.0.0-M6 | 98.05 | 96.82 | 88.02 | 87.72 |
+| 1.0.0-M7 | 83.27 | 84.08 | 81.56 | 76.25 |
+| 1.0.0-M8 | 91.23 | 95.83 | 85.16 | 88.41 |
+| 1.0.0 | 93.39 | 97.75 | 83.72 | 87.33 |
+| 1.1.0-M1 | 98.05 | 97.94 | 84.12 | 88.06 |
+| 1.1.0-M2 | 98.23 | 99.55 | 85.34 | 88.77 |
+| 1.1.0-M3 | 99.76 | 99.71 | 85.94 | 88.1 |
+| 1.1.0-M4 | 98.49 | 99.16 | 84.67 | 88.92 |
+| 1.1.0 | 97.55 | 98.32 | 83.02 | 86.96 |
+| 2.0.0-M1 | 99.43 | 99.03 | 82.76 | 87.02 |
+| 2.0.0-M2 | 98.56 | 99.73 | 84.94 | 88.71 |
+| 2.0.0-M3 | 96.22 | 98.41 | 77.56 | 83.67 |
+| 2.0.0-M4 | 100.0 | 99.89 | 80.81 | 88.78 |
+| 2.0.0-M5 | 92.86 | 92.74 | 84.83 | 85.82 |
+| 2.0.0-M6 | 99.16 | 99.24 | 83.6 | 86.51 |
+| 2.0.0-M7 | 97.54 | 98.84 | 85.84 | 87.55 |
+| 2.0.0-M8 | 99.36 | 98.85 | 85.93 | 88.35 |
+| 2.0.0 | 97.59 | 96.01 | 81.12 | 82.8 |
+| 2.1.0-M1 | 96.72 | 96.38 | 83.12 | 86.48 |
+
+## 3.7 Omnipresent classes: JNode vs Bunch
+
+![Figure 16 – Omnipresent classes found by JNode and by the Bunch rule (left); MoJoFM of ACDC to the packages for the full system, without JNode noise and without Bunch omnipresent classes (right).](../results/figures/bunch_vs_jnode.png)
+
+The Bunch rule (in-degree > 3 × average, Lecture 6–7) flags **24–86 classes**
+per version, JNode 21–147. The two sets **overlap only partly** (Jaccard
+0.17–0.46), and the overlap shrinks over time (0.17 in 2.0.0 and 2.1.0-M1).
+Bunch flags the classes with the highest fan-in by definition (`Document`,
+`Filter`, `EmbeddingModel`, ...). JNode's SIG also flags less used classes
+that lie on many paths (e.g. the MCP transports, 3.3).
+
+Removing the omnipresent classes before ACDC (Table 16) gives the lecture's
+picture: both variants are closer to the package structure than the full
+system (MoJoFM 47–55 % and 47–61 % vs 43–48 %). **JNode helps more in
+1.0.0-M1…M6** (its noise set then contained the real hubs), and **Bunch helps
+more from 1.0.0-M7 on** (49–53 % vs 47–50 %), when JNode's set drifts away from
+the most-used classes. The course MQ is practically the same for all three
+variants (0.22–0.24). The choice of omnipresent classes changes *which*
+classes end up together, not how dense the clusters are.
+
+Table 16 – JNode vs Bunch omnipresent classes and their effect on ACDC.
+
+| Version | Bunch (>3·avg) | JNode | Both | Jaccard | MQ System | MQ JNode | MQ Bunch | MoJoFM System | MoJoFM JNode | MoJoFM Bunch |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0.8.0 | 24 | 21 | 11 | 0.324 | 0.222 | 0.226 | 0.226 | 47.6 | 50.2 | 53.72 |
+| 1.0.0-M1 | 43 | 95 | 38 | 0.38 | 0.229 | 0.225 | 0.236 | 45.81 | 61.3 | 54.7 |
+| 1.0.0-M2 | 52 | 127 | 47 | 0.356 | 0.232 | 0.233 | 0.238 | 45.74 | 59.34 | 53.46 |
+| 1.0.0-M3 | 60 | 114 | 54 | 0.45 | 0.229 | 0.231 | 0.234 | 44.15 | 54.88 | 51.59 |
+| 1.0.0-M4 | 59 | 114 | 51 | 0.418 | 0.224 | 0.226 | 0.226 | 42.72 | 52.26 | 47.33 |
+| 1.0.0-M5 | 63 | 113 | 55 | 0.455 | 0.232 | 0.231 | 0.231 | 44.84 | 54.87 | 50.54 |
+| 1.0.0-M6 | 68 | 147 | 59 | 0.378 | 0.234 | 0.230 | 0.230 | 45.61 | 58.27 | 52.05 |
+| 1.0.0-M7 | 73 | 72 | 40 | 0.381 | 0.230 | 0.232 | 0.231 | 46.19 | 49.27 | 52.69 |
+| 1.0.0-M8 | 73 | 77 | 40 | 0.364 | 0.227 | 0.232 | 0.230 | 46.04 | 48.11 | 51.1 |
+| 1.0.0 | 69 | 71 | 39 | 0.386 | 0.232 | 0.235 | 0.231 | 47.9 | 50.78 | 52.73 |
+| 1.1.0-M1 | 74 | 91 | 43 | 0.352 | 0.230 | 0.235 | 0.233 | 46.37 | 49.04 | 51.79 |
+| 1.1.0-M2 | 77 | 108 | 46 | 0.331 | 0.234 | 0.237 | 0.235 | 46.87 | 49.71 | 52.7 |
+| 1.1.0-M3 | 78 | 106 | 47 | 0.343 | 0.232 | 0.233 | 0.231 | 46.2 | 48.89 | 51.45 |
+| 1.1.0-M4 | 79 | 108 | 48 | 0.345 | 0.231 | 0.233 | 0.230 | 45.99 | 49.25 | 51.99 |
+| 1.1.0 | 77 | 111 | 48 | 0.343 | 0.231 | 0.233 | 0.230 | 46.33 | 50.14 | 52.83 |
+| 2.0.0-M1 | 79 | 112 | 48 | 0.336 | 0.228 | 0.233 | 0.230 | 45.91 | 49.28 | 51.55 |
+| 2.0.0-M2 | 81 | 112 | 50 | 0.35 | 0.230 | 0.232 | 0.228 | 46.64 | 50.44 | 52.49 |
+| 2.0.0-M3 | 86 | 123 | 47 | 0.29 | 0.233 | 0.233 | 0.236 | 45.14 | 48.07 | 51.46 |
+| 2.0.0-M4 | 86 | 124 | 47 | 0.288 | 0.233 | 0.234 | 0.236 | 45.19 | 48.46 | 51.41 |
+| 2.0.0-M5 | 75 | 125 | 39 | 0.242 | 0.235 | 0.234 | 0.234 | 46.6 | 49.01 | 52.01 |
+| 2.0.0-M6 | 76 | 123 | 40 | 0.252 | 0.233 | 0.236 | 0.233 | 45.78 | 48.56 | 51.28 |
+| 2.0.0-M7 | 70 | 123 | 38 | 0.245 | 0.232 | 0.233 | 0.233 | 45.17 | 48.1 | 49.65 |
+| 2.0.0-M8 | 72 | 126 | 39 | 0.245 | 0.232 | 0.235 | 0.233 | 45.14 | 48.35 | 49.71 |
+| 2.0.0 | 74 | 112 | 28 | 0.177 | 0.231 | 0.235 | 0.234 | 44.99 | 47.78 | 49.42 |
+| 2.1.0-M1 | 76 | 116 | 28 | 0.171 | 0.229 | 0.229 | 0.232 | 44.74 | 47.16 | 49.18 |
+
+## 3.8 Architectural smells and their evolution
+
+![Figure 17 – Evolution of the architectural smells (normalised by #packages or #classes).](../results/figures/smells.png)
+
+Following Lecture 5 (Sas et al.), we track four smells over the 25 versions
+(Table 17, Figure 17):
+
+* **Cyclic dependency** shows the clearest trend. The share of packages in a
+  dependency cycle rises from 4.9 % (0.8.0) to **14.6 % in 1.0.0-M6**, stays
+  high in M7/M8, and **drops to 7.2 % in 1.0.0** and ≈ 5–7 % afterwards. The
+  release that cleaned up the RAG and chat-memory APIs for the GA removed many
+  package cycles, the same anti-regressive work seen in 3.2. Class-level
+  cycles grow from 4 % to 9 % (1.0.0) and then stay at 7–9 %.
+* **Hub-like dependency** stays at 4–6 % of the classes and decreases slightly
+  after 1.1 (5.5 % → 4.6 %). No class is getting worse as a hub.
+* **Unstable dependency** affects only 1.5–4.7 % of the packages. Spring AI's
+  packages mostly depend on more stable ones (the model API, `document`,
+  `util`), as a ports-and-adapters design should.
+* **God component.** Spring AI's packages are small (mean ≈ 4 classes), so
+  the mean + 2σ threshold is only 9–10 classes and 4 → 19–21 packages exceed it
+  (`chat.client`, `chat.prompt`, `model`, `openai`, ...). None of them is a
+  "god" package in absolute terms. The growth reflects more feature packages
+  of normal size, not a degrading package.
+
+Table 17 – Architectural smells per version.
+
+| Version | Cyclic pkgs % | Cyclic classes % | Hub-like % | Unstable dep. % | God comp. | God components |
+|---|---|---|---|---|---|---|
+| 0.8.0 | 4.88 | 4.23 | 5.28 | 2.44 | 4 | chat.prompt huggingface.model image vectorstore |
+| 1.0.0-M1 | 7.14 | 6.26 | 5.43 | 5.0 | 6 | chat.prompt huggingface.model image model openai vectorstore |
+| 1.0.0-M2 | 8.15 | 6.15 | 6.15 | 1.63 | 8 | chat.prompt embedding huggingface.model model moderation observation.conventions … |
+| 1.0.0-M3 | 8.67 | 5.79 | 5.64 | 1.53 | 8 | chat.prompt embedding huggingface.model model moderation observation.conventions … |
+| 1.0.0-M4 | 11.65 | 6.09 | 4.98 | 2.91 | 9 | chat.prompt embedding huggingface.model model model.function moderation … |
+| 1.0.0-M5 | 10.22 | 7.12 | 4.84 | 2.22 | 13 | azure.openai chat.client.advisor chat.metadata chat.observation chat.prompt embedding … |
+| 1.0.0-M6 | 14.6 | 8.33 | 5.29 | 4.42 | 13 | azure.openai chat.client.advisor chat.metadata chat.observation chat.prompt embedding … |
+| 1.0.0-M7 | 12.39 | 8.46 | 5.1 | 4.7 | 15 | azure.openai chat.metadata chat.observation chat.prompt embedding huggingface.model … |
+| 1.0.0-M8 | 12.88 | 7.12 | 4.96 | 4.29 | 15 | azure.openai chat.client.advisor chat.client.advisor.api chat.metadata chat.observation chat.prompt … |
+| 1.0.0 | 7.24 | 9.01 | 5.43 | 2.71 | 13 | azure.openai chat.client chat.metadata chat.prompt embedding huggingface.model … |
+| 1.1.0-M1 | 6.56 | 8.72 | 5.53 | 2.87 | 14 | azure.openai chat.client chat.metadata chat.prompt embedding huggingface.model … |
+| 1.1.0-M2 | 6.2 | 8.81 | 5.56 | 2.71 | 16 | azure.openai chat.client chat.metadata chat.prompt embedding huggingface.model … |
+| 1.1.0-M3 | 6.08 | 8.37 | 5.54 | 2.66 | 16 | azure.openai chat.client chat.metadata chat.prompt embedding huggingface.model … |
+| 1.1.0-M4 | 6.06 | 8.77 | 5.33 | 3.03 | 17 | azure.openai chat.client chat.client.advisor chat.metadata chat.prompt embedding … |
+| 1.1.0 | 5.3 | 8.77 | 5.11 | 2.27 | 18 | azure.openai chat.client chat.client.advisor chat.metadata chat.prompt converter … |
+| 2.0.0-M1 | 5.22 | 8.68 | 5.04 | 2.24 | 19 | azure.openai chat.client chat.client.advisor chat.metadata chat.prompt converter … |
+| 2.0.0-M2 | 4.98 | 8.37 | 4.65 | 2.49 | 18 | azure.openai chat.client chat.client.advisor chat.metadata chat.prompt converter … |
+| 2.0.0-M3 | 5.61 | 7.45 | 4.32 | 3.63 | 21 | anthropic azure.openai chat.client chat.client.advisor chat.metadata chat.prompt … |
+| 2.0.0-M4 | 5.61 | 7.44 | 4.32 | 3.63 | 21 | anthropic azure.openai chat.client chat.client.advisor chat.metadata chat.prompt … |
+| 2.0.0-M5 | 5.4 | 7.61 | 4.26 | 3.6 | 18 | anthropic chat.client chat.client.advisor chat.metadata chat.prompt converter … |
+| 2.0.0-M6 | 7.27 | 7.89 | 4.3 | 3.64 | 18 | anthropic chat.client chat.client.advisor chat.metadata chat.prompt converter … |
+| 2.0.0-M7 | 7.43 | 8.02 | 4.38 | 3.72 | 19 | anthropic chat.client chat.client.advisor chat.client.advisor.api chat.metadata chat.prompt … |
+| 2.0.0-M8 | 7.41 | 8.0 | 4.78 | 3.7 | 19 | anthropic chat.client chat.client.advisor chat.client.advisor.api chat.metadata chat.prompt … |
+| 2.0.0 | 4.74 | 7.97 | 4.55 | 3.65 | 18 | anthropic chat.client chat.client.advisor chat.client.advisor.api chat.metadata chat.prompt … |
+| 2.1.0-M1 | 6.03 | 7.97 | 4.63 | 4.26 | 19 | anthropic chat.client chat.client.advisor chat.client.advisor.api chat.metadata chat.prompt … |
+
+## 3.9 Lehman's laws: dependency changes and work rate
+
+![Figure 18 – Dependencies added and removed per version.](../results/figures/dependency_changes.png)
+
+![Figure 19 – Commits per month between the analysed releases.](../results/figures/activity.png)
+
+* **Law II – increasing complexity.** As in the lecture's Eclipse example,
+  Figure 18 separates added from removed dependencies. Growth phases add
+  hundreds of dependencies (1,154 in 1.0.0-M1, 916 in M2, 532 in 2.0.0-M3),
+  and **large removals mark the restructuring releases**: 1.0.0-M7 (−678, the
+  module split), 1.0.0-M8 and 1.0.0 (−375, −411, the GA clean-up) and
+  2.0.0-M5 (−674, removed providers). These are exactly the points where
+  "work is done to reduce complexity". After each of them the dependency
+  density stays lower (3.2).
+* **Law IV – conservation of organisational stability.** The work rate between
+  releases varies from 73 to 447 commits per month (median 123) without a
+  long-term trend; the peaks are the weeks before a GA (1.0.0: 293, 2.0.0:
+  447). This is consistent with an invariant average work rate.
+* **Law VIII – feedback system.** Spring AI's process has the multi-level
+  feedback loops the law describes: public milestones every 1–2 months with
+  user feedback, parallel maintenance lines (1.0.x, 1.1.x, 2.0.x), and
+  design records that turn feedback into enforced rules (design doc 02).
+* Spring AI is an **E-type** system: it must keep adapting to new AI
+  providers and protocols (MCP), so all laws apply.
+
+Table 18 – Dependencies added and removed between versions.
+
+| Version | Dependencies | Added | Removed |
+|---|---|---|---|
+| 1.0.0-M1 | 1593 | 1154 | 388 |
+| 1.0.0-M2 | 2329 | 916 | 180 |
+| 1.0.0-M3 | 2680 | 400 | 49 |
+| 1.0.0-M4 | 2895 | 281 | 66 |
+| 1.0.0-M5 | 3053 | 534 | 376 |
+| 1.0.0-M6 | 3104 | 334 | 283 |
+| 1.0.0-M7 | 3241 | 815 | 678 |
+| 1.0.0-M8 | 3097 | 231 | 375 |
+| 1.0.0 | 2969 | 283 | 411 |
+| 1.1.0-M1 | 3194 | 258 | 33 |
+| 1.1.0-M2 | 3365 | 185 | 14 |
+| 1.1.0-M3 | 3387 | 45 | 23 |
+| 1.1.0-M4 | 3472 | 94 | 9 |
+| 1.1.0 | 3440 | 50 | 82 |
+| 2.0.0-M1 | 3590 | 155 | 5 |
+| 2.0.0-M2 | 3746 | 181 | 25 |
+| 2.0.0-M3 | 4181 | 532 | 97 |
+| 2.0.0-M4 | 4181 | 4 | 4 |
+| 2.0.0-M5 | 3583 | 76 | 674 |
+| 2.0.0-M6 | 3554 | 58 | 87 |
+| 2.0.0-M7 | 3520 | 25 | 59 |
+| 2.0.0-M8 | 3538 | 67 | 49 |
+| 2.0.0 | 3451 | 143 | 230 |
+| 2.1.0-M1 | 3725 | 277 | 3 |
+
 # 4. Architecture recovery with AI (latest version, 2.1.0-M1)
 
 **Tool and protocol.** We used **Claude (Anthropic)** through Claude Code.
@@ -593,7 +894,7 @@ Table 10 – Components of the AI architecture (P3) – classes with at least on
 
 Table 11 – AI (P3) architecture vs algorithmic architectures (2.1.0-M1).
 
-| Architecture (2.1.0-M1) | k | Largest | Cohesion | Coupling | BasicMQ | TurboMQ | TurboMQ/k | Intra deps |
+| Architecture (2.1.0-M1) | k | Largest | Cohesion | Coupling | MQ (course) | TurboMQ | TurboMQ/k | Intra deps |
 |---|---|---|---|---|---|---|---|---|
 | AI (P3), full | 12 | 214 | 0.02836 | 0.002618 | 0.02574 | 5.48 | 0.4567 | 0.4722 |
 | AI (P3), no noise | 12 | 174 | 0.02801 | 0.00229 | 0.02572 | 6.295 | 0.5246 | 0.5236 |
@@ -620,18 +921,24 @@ Table 12 – Agreement (ARI) of the AI architecture with the other architectures
   whiteboard. The algorithmic architectures are closer to "modules of
   collaborating classes" and would need a second, hierarchical step to be read
   as components.
-* **Quality metrics.** With 15× fewer components, the AI architecture keeps
-  **a higher share of dependencies inside components than ACDC (47.2 % vs
-  40.4 %)**, and its TurboMQ/k is also higher (0.457 vs 0.411). k-means
-  is better on TurboMQ/k (0.567) and k-means without noise is best (0.648).
-  Cohesion and BasicMQ are much lower for the AI (0.028 vs 0.23) only
-  because intra-connectivity divides by Nᵢ²: large components can never be
-  dense. These metrics are not comparable across very different k.
+* **Quality metrics – the verdict depends on the measure.** By the
+  **course MQ**, ACDC is clearly best (0.229), k-means (0.133/0.145) and the
+  packages (0.140) follow, and the AI architecture is the *worst* (0.026).
+  MQ's cohesion term divides by Nᵢ², so 12 components of up to 214 classes
+  can never be dense. On the **k-independent measures** the picture
+  reverses: with 15× fewer components the AI architecture keeps **a higher
+  share of dependencies inside components than ACDC (47.2 % vs 40.4 %)**, and
+  its TurboMQ/k is also higher (0.457 vs 0.411). Only k-means is better
+  (0.567; without noise 0.648). The course MQ is therefore suitable for
+  comparing architectures with a similar number of clusters (A1–A4), not
+  for comparing a 12-component view with 185 clusters.
 * **Agreement.** The AI architecture agrees very little with all algorithmic
   architectures (ARI ≈ 0.05–0.11) and even with the packages (0.07; ARI is
   low when the numbers of groups differ so much). ACDC and k-means agree with
   each other only moderately (ARI 0.29 for A1 vs A3, 0.32 for A2 vs A4), and
-  each agrees with the packages at ARI ≈ 0.24–0.30.
+  each agrees with the packages at ARI ≈ 0.24–0.30. With the lecture's
+  MoJoFM and the AI architecture as reference, the packages are closest
+  (73 %), then k-means (65 %) and ACDC (54–55 %) (3.6).
 * **Different principles.** The AI groups by **responsibility and
   architectural role**. All provider adapters form one component, all
   vector-store adapters another, all auto-configuration a third. The
@@ -648,8 +955,10 @@ Table 12 – Agreement (ARI) of the AI architecture with the other architectures
 architecture (P3) is the most useful. It is correct with respect to the
 code (every package is mapped, the dependency directions are measured), it
 matches the documented intent (design doc 02), and it names its own weak
-points. ACDC is the best fully automatic method for *tracking evolution*
-because it is stable and deterministic. k-means gives the best modularity
+points. ACDC is the best fully automatic method for *tracking evolution*:
+it has the highest course MQ, it is stable and deterministic (MoJoFM ≈ 96 %
+between consecutive versions), and with noise removal it is the closest to
+the package structure (MoJoFM 51 %). k-means gives the best modularity
 numbers but depends on k and on the embedding, and its clusters change most
 between versions.
 
@@ -705,8 +1014,10 @@ JNode's SIG measure depends on the graph's shape.
 * **k-means.** The results depend on the feature representation (dependency
   profiles + SVD) and on the elbow choice of k. The silhouette would pick
   much finer clusterings (Figure 2).
-* **Metrics.** Cohesion/BasicMQ and TurboMQ depend strongly on k; we report
-  TurboMQ/k and the intra-cluster share as the main comparable measures.
+* **Metrics.** Cohesion, the course MQ and TurboMQ depend strongly on k; we report
+  the course MQ as the main measure for architectures of similar size (A1–A4)
+  and TurboMQ/k, the intra-cluster share and MoJoFM to compare across very
+  different k.
 * **Milestones as versions** (see 1.2).
 
 # References
@@ -811,7 +1122,7 @@ Table 7b – TurboMQ.
 | 2.0.0 | 73.5 | 75.6 | 47.0 | 47.1 | 55.8 |
 | 2.1.0-M1 | 76.1 | 79.3 | 47.6 | 49.2 | 56.9 |
 
-Table 7c – BasicMQ.
+Table 7c – MQ (course definition).
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
@@ -991,4 +1302,4 @@ Table 9 – Module changes per release.
 
 ![Figure A1 – TurboMQ.](../results/figures/mq_turbo.png)
 
-![Figure A2 – BasicMQ.](../results/figures/mq_basic.png)
+![Figure A2 – MQ (course definition).](../results/figures/mq_basic.png)

@@ -184,11 +184,56 @@ maximum (Figure 2). k grows from 52 (A3) / 42 (A4) in 10.0 to 69 / 64 in
 
 ## 2.5 Quality metrics
 
-As in our first analysis: **cohesion** = mean intra-connectivity μᵢ/Nᵢ²;
-**coupling** = mean inter-connectivity εᵢⱼ/(2NᵢNⱼ); **BasicMQ** = cohesion −
-coupling; **TurboMQ** = Σ 2μᵢ/(2μᵢ+εᵢ) and **TurboMQ/k** (mean cluster factor,
-comparable across k); **intra deps** = share of dependencies inside clusters;
-**stability** = adjusted Rand index between consecutive sampled versions.
+For a clustering into k clusters, with μᵢ the dependencies inside cluster i
+(Nᵢ classes) and εᵢⱼ the dependencies between clusters i and j (directed,
+unweighted class graph), we use the definitions of the course (Lecture 6–7,
+"Ποια θεωρείται καλή διάτμηση"):
+
+* **Cohesion** (intra-connectivity) Aᵢ = μᵢ / Nᵢ². The lecture allows
+  μᵢ/Nᵢ² or μᵢ/(Nᵢ(Nᵢ−1)). We use Nᵢ² because it is defined for one-class
+  clusters (packages and ACDC produce some). We report the mean over clusters.
+* **Coupling** (inter-connectivity) Eᵢⱼ = εᵢⱼ / (2·Nᵢ·Nⱼ), averaged over all
+  cluster pairs.
+* **MQ – Modularization Quality** (course definition, Mancoridis et al. 1998):
+  MQ = (1/k)·ΣAᵢ − (2/(k(k−1)))·ΣEᵢⱼ, in [−1, 1]. This is the **main quality
+  measure** of the assignment. Because Aᵢ divides by Nᵢ², MQ favours many
+  small, dense clusters, so it is only comparable between architectures
+  with a similar number of clusters.
+* Supplementary measures, independent of k: **TurboMQ/k**, the mean cluster
+  factor 2μᵢ/(2μᵢ+εᵢ) of the later Bunch MQ (Mitchell & Mancoridis 2006), where
+  εᵢ counts all dependencies crossing the border of cluster i; and **intra
+  deps**, the share of all dependencies that stay inside a cluster.
+  TurboMQ (the sum, which grows with k) is given in the appendix.
+
+## 2.6 Additional analyses from the lectures
+
+* **MoJoFM** (Lecture 6–7): MoJoFM(A, R) = (1 − mno(A,R) / max mno(·,R)) · 100 %,
+  where mno is the minimum number of *Move* and *Join* operations that turn
+  architecture A into reference R (100 % = identical). It is computed with the
+  original MoJo 2.0 implementation (`tools/mojo.jar`). The system has no
+  expert ("ground-truth") architecture, so we use the developers' **package
+  structure** as the reference for every version and, for the latest version,
+  also the **AI architecture** of Phase 4. MoJoFM between the architectures
+  of consecutive versions measures **architectural stability**; we also report
+  the adjusted Rand index (ARI).
+* **Omnipresent classes with the Bunch rule** (Lecture 6–7): in-degree
+  > 3 × average in-degree. We compare it with JNode (Constantinou et al. 2015),
+  and, as in the lecture's comparison of "System", "Noise" and "Bunch", we
+  measure how close ACDC gets to the reference architecture without each set.
+* **Architectural smells and their evolution** (Lecture 5; Fontana et al.
+  2016, Sas et al. 2019), each normalised by the number of classes or packages:
+  *cyclic dependency* (packages/classes in a dependency cycle, i.e. a
+  strongly connected component of size > 1, found by depth-first search);
+  *hub-like dependency* (classes with fan-in and fan-out above the system
+  medians and |fan-in − fan-out| < 0.25·(fan-in + fan-out)); *unstable
+  dependency* (packages, instability I = Ce/(Ca+Ce), of which more than 30 %
+  of the package dependencies point to less stable packages – the Arcan
+  threshold); *god component* (packages with more classes than mean + 2σ of
+  the package sizes, since the lecture leaves the threshold open).
+* **Lehman's laws** (Lecture 1–2): besides size and dependency growth, we count
+  the **dependencies added and removed** per version (as in the lecture's
+  Eclipse example for law II) and the **commits per month** between the
+  analysed releases (law IV, conservation of organisational stability).
 
 # 3. Results and discussion
 
@@ -283,7 +328,7 @@ mostly removes `common.base` and `common.cache` from the graph.
 
 Table 4 – Mean over the 13 versions.
 
-| Architecture | k | Largest cluster | Cohesion | Coupling | BasicMQ | TurboMQ | TurboMQ/k | Intra deps | ARI vs packages |
+| Architecture | k | Largest cluster | Cohesion | Coupling | MQ (course) | TurboMQ | TurboMQ/k | Intra deps | ARI vs packages |
 |---|---|---|---|---|---|---|---|---|---|
 | A1 ACDC (full) | 78 | 46 | 0.2578 | 0.00649 | 0.2513 | 24.1 | 0.314 | 0.368 | 0.106 |
 | A2 ACDC (no noise) | 69 | 38 | 0.2506 | 0.00481 | 0.2458 | 29.8 | 0.433 | 0.470 | 0.101 |
@@ -301,10 +346,17 @@ largest cluster of 27–52 classes. k-means produces 40–74 clusters of at
 most 43 classes. The packages are very coarse: 8–17 groups, the largest
 being `common.collect` with 179–217 classes.
 
-**Quality – the packages win.** Guava is the opposite of an
-application framework. Its **package decomposition is by far the most
-modular on the dependency share: 71 % of all dependencies stay inside a
-package**, against 37 % (A1) and 30 % (A3). On TurboMQ/k the packages (0.50)
+**Quality by the course MQ – ACDC wins, the packages are last.** ACDC has
+the highest MQ in every version (0.24–0.26; mean 0.251 for A1, 0.246 for A2),
+k-means follows (0.169 / 0.182), and the package structure is clearly last
+(0.100 on average, between 0.084 and 0.121, lowest in 33.7.0). MQ is dominated by its
+cohesion term: ACDC's clusters of 5–7 classes are dense, while
+`common.collect` with ~200 classes can never be (μᵢ/Nᵢ²).
+
+**Quality by the k-independent measures – the packages win.** Guava is the
+opposite of an application framework. Its **package decomposition is by far
+the most modular on the dependency share: 71 % of all dependencies stay inside
+a package**, against 37 % (A1) and 30 % (A3). On TurboMQ/k the packages (0.50)
 are better than A1/A2/A3 and equal to A4. Guava's packages are cohesive
 feature libraries (`graph`, `hash`, `io`, `util.concurrent`) built around
 a dense core. The algorithms have no notion of "feature". They see one
@@ -313,14 +365,15 @@ through the dense core (`collect`, `base`), which costs many dependencies.
 Their much higher **cohesion** (0.25 for ACDC vs 0.11 for packages) only
 reflects their small cluster size (μᵢ/Nᵢ²), not a better modularisation.
 
-* **ACDC vs k-means.** ACDC has the higher cohesion and keeps more
+* **ACDC vs k-means.** ACDC has the higher cohesion and MQ and keeps more
   dependencies inside clusters (37 % vs 30 % on the full graph). k-means has
   the higher TurboMQ/k (0.34 vs 0.31 on the full graph, 0.51 vs 0.43 without
   noise).
 * **Noise removal** (A1→A2, A3→A4) raises TurboMQ/k by **+0.12 (ACDC) and
   +0.16 (k-means)** and the intra share by 10–15 percentage points. It also
   raises the packages' TurboMQ/k from 0.50 to 0.65. Removing `base` cuts
-  most edges that cross package borders.
+  most edges that cross package borders. The course MQ hardly changes (ACDC
+  0.251 → 0.246, k-means 0.169 → 0.182).
 
 **ACDC parameters.** On 33.7.0 (Table 6, Figure 9): BodyHeader has no effect
 (`bso` = `so`). Without OrphanAdoption, ClusterLast puts the orphans into one
@@ -401,6 +454,194 @@ for consecutive releases, because each step spans two majors (and up to 3
 years). The least stable step is 12.0 → 14.0 (A1 ARI 0.47), where 58
 classes were added and 23 removed.
 
+## 3.6 Distance to the reference architecture (MoJoFM)
+
+![Figure 14 – MoJoFM of A1–A4 to the package structure.](../results/figures/mojofm_pkg.png)
+
+![Figure 15 – MoJoFM between consecutive sampled versions.](../results/figures/mojofm_stability.png)
+
+Guava has no expert-validated architecture, so we use the package structure
+(all versions) and the AI architecture (33.7.0) as reference architectures for
+the lecture's MoJoFM.
+
+* **To the packages** (Table 13): all recovered architectures are 69–83 %
+  similar to the packages. Values are high because the packages are coarse:
+  merging small clusters into them needs few Move/Join operations. Unlike in
+  Spring AI, **k-means is closer than ACDC** (A3 73.9 % vs A1 70.9 %), and
+  **removing the noise classes brings both closer** (A2 74.5 %, A4 80.2 %), as in
+  the lecture's experiment.
+* **To the AI architecture** (Table 14): the packages are closest (75.7 %),
+  then k-means (69.0 %, 74.6 % without noise), then ACDC (66.0 %, 68.7 %).
+  Conversely, the AI architecture is 94.4 % similar to the packages. It
+  differs mainly by splitting `collect` and by grouping small packages
+  (escape/html/xml/net, primitives/math).
+* **Stability** (Table 15): ACDC is much more stable than k-means (mean MoJoFM
+  89.5 % / 88.1 % vs 71.5 % / 72.9 %). ACDC's stability grows as the library
+  matures: 74–85 % in the expansion steps (12.0–16.0 and 20.0), 92–97 %
+  between 24.0 and 32.0.
+
+Table 13 – MoJoFM (%) of the recovered architectures to the package structure.
+
+| Version | A1 → PKG | A2 → PKG | A3 → PKG | A4 → PKG |
+|---|---|---|---|---|
+| 10.0 | 72.45 | 74.71 | 74.15 | 77.04 |
+| 12.0 | 72.59 | 72.64 | 77.26 | 79.87 |
+| 14.0 | 71.24 | 76.8 | 76.52 | 80.56 |
+| 16.0 | 72.02 | 76.92 | 71.78 | 82.84 |
+| 18.0 | 70.84 | 76.02 | 73.01 | 81.58 |
+| 20.0 | 71.64 | 76.34 | 75.21 | 81.68 |
+| 22.0 | 70.26 | 73.51 | 73.32 | 80.2 |
+| 24.0 | 68.95 | 72.71 | 71.68 | 80.0 |
+| 26.0 | 69.42 | 72.29 | 72.12 | 78.75 |
+| 28.0 | 69.11 | 72.62 | 74.52 | 80.05 |
+| 30.0 | 71.05 | 73.17 | 73.5 | 81.19 |
+| 32.0.0 | 71.0 | 74.78 | 73.61 | 79.17 |
+| 33.7.0 | 70.79 | 75.51 | 73.6 | 80.22 |
+
+Table 14 – MoJoFM (%) to the AI architecture (33.7.0).
+
+| MoJoFM (%) to the AI architecture | A1 | A2 | A3 | A4 | Packages |
+|---|---|---|---|---|---|
+| 33.7.0 | 65.98 | 68.69 | 68.97 | 74.55 | 75.7 |
+
+Table 15 – MoJoFM (%) between consecutive sampled versions.
+
+| Version (vs previous) | A1 | A2 | A3 | A4 |
+|---|---|---|---|---|
+| 12.0 | 81.75 | 79.2 | 73.76 | 63.04 |
+| 14.0 | 74.04 | 80.16 | 69.62 | 68.0 |
+| 16.0 | 85.04 | 82.07 | 69.72 | 64.14 |
+| 18.0 | 94.57 | 92.12 | 66.34 | 69.49 |
+| 20.0 | 85.1 | 88.71 | 63.48 | 70.03 |
+| 22.0 | 88.22 | 86.84 | 72.53 | 79.84 |
+| 24.0 | 92.32 | 91.39 | 72.28 | 77.31 |
+| 26.0 | 97.44 | 96.9 | 71.09 | 77.01 |
+| 28.0 | 95.11 | 95.52 | 76.61 | 81.5 |
+| 30.0 | 94.69 | 89.56 | 78.74 | 76.87 |
+| 32.0.0 | 96.2 | 87.47 | 69.75 | 74.01 |
+| 33.7.0 | 89.88 | 87.12 | 74.37 | 73.24 |
+
+## 3.7 Omnipresent classes: JNode vs Bunch
+
+![Figure 16 – Omnipresent classes by JNode and by the Bunch rule (left); MoJoFM of ACDC to the packages for the full system, without JNode noise and without Bunch omnipresent classes (right).](../results/figures/bunch_vs_jnode.png)
+
+The Bunch rule (in-degree > 3 × average) flags **25–35 classes**, exactly the
+hubs that JNode misses (3.3). In 33.7.0 these are `Preconditions`,
+`Function`, `Predicate`, `Supplier`, `MoreObjects`, `ImmutableList/Set/Map`,
+`Iterators`, `Iterables`, `Lists`, `Maps`, `Sets`, `Ordering`, `Multimap`,
+`Multiset`, `HashCode`, `Ints`, `ListenableFuture`, `EndpointPair`, and others.
+The two sets hardly overlap (**Jaccard 0.10–0.29**): JNode flags most of
+`base` and `cache`, Bunch the most-used classes of `collect` and `base`.
+
+For the effect on ACDC (Table 16), **JNode's noise removal brings ACDC closer
+to the packages from 14.0 on** (72–77 % vs 69–74 % for Bunch). Bunch is better
+only in 10.0 and 12.0, where JNode needed the threshold fallback. Removing
+the Bunch hubs cuts through `collect` and scatters its classes, while
+removing `cache` (JNode) removes a separate package that does not affect the
+other clusters. The course MQ stays at 0.23–0.26 for all variants.
+
+Table 16 – JNode vs Bunch omnipresent classes and their effect on ACDC.
+
+| Version | Bunch (>3·avg) | JNode | Both | Jaccard | MQ System | MQ JNode | MQ Bunch | MoJoFM System | MoJoFM JNode | MoJoFM Bunch |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 10.0 | 25 | 24 | 11 | 0.289 | 0.251 | 0.238 | 0.244 | 72.45 | 74.71 | 76.13 |
+| 12.0 | 27 | 15 | 5 | 0.135 | 0.252 | 0.258 | 0.250 | 72.59 | 72.64 | 75.52 |
+| 14.0 | 26 | 48 | 7 | 0.104 | 0.254 | 0.251 | 0.233 | 71.24 | 76.8 | 72.48 |
+| 16.0 | 29 | 58 | 11 | 0.145 | 0.260 | 0.254 | 0.245 | 72.02 | 76.92 | 72.27 |
+| 18.0 | 30 | 58 | 10 | 0.128 | 0.262 | 0.253 | 0.249 | 70.84 | 76.02 | 72.38 |
+| 20.0 | 33 | 68 | 13 | 0.148 | 0.253 | 0.249 | 0.244 | 71.64 | 76.34 | 73.66 |
+| 22.0 | 33 | 73 | 13 | 0.14 | 0.251 | 0.243 | 0.238 | 70.26 | 73.51 | 70.86 |
+| 24.0 | 35 | 75 | 13 | 0.134 | 0.249 | 0.244 | 0.235 | 68.95 | 72.71 | 70.92 |
+| 26.0 | 33 | 75 | 13 | 0.137 | 0.246 | 0.241 | 0.231 | 69.42 | 72.29 | 70.81 |
+| 28.0 | 34 | 75 | 13 | 0.135 | 0.249 | 0.240 | 0.236 | 69.11 | 72.62 | 69.52 |
+| 30.0 | 33 | 82 | 16 | 0.162 | 0.243 | 0.236 | 0.233 | 71.05 | 73.17 | 70.43 |
+| 32.0.0 | 33 | 68 | 11 | 0.122 | 0.248 | 0.245 | 0.235 | 71.0 | 74.78 | 70.86 |
+| 33.7.0 | 30 | 77 | 11 | 0.115 | 0.249 | 0.242 | 0.238 | 70.79 | 75.51 | 71.34 |
+
+## 3.8 Architectural smells and their evolution
+
+![Figure 17 – Evolution of the architectural smells.](../results/figures/smells.png)
+
+* **Cyclic dependency – none between packages, many inside them.** Guava's
+  package dependency graph is **acyclic in all 13 versions**. This is a
+  deliberate layering (base → primitives → collect → concurrency → features)
+  that the maintainers have kept for 15 years. Inside the packages,
+  however, the share of classes in a class-level cycle rises steadily from
+  **32 % to 41 %**, almost all of them in `collect`, where interfaces,
+  implementations and utilities reference each other (`ImmutableList` ⇄
+  `ImmutableCollection` ⇄ `Iterators`, ...). The package boundaries are kept
+  clean, and the entanglement grows inside them.
+* **Hub-like dependency** affects 5.5–8 % of the classes, highest in 10.0 and
+  then stable at ≈ 6 %.
+* **Unstable dependency**: only one package, `collect`, between 16.0 and
+  28.0. One of its three package dependencies, `math`, was less stable than
+  `collect` itself (instability 0.29–0.33 vs 0.27–0.30). In 30.0 `math` became
+  more stable than `collect`, and the smell disappears.
+* **God component**: `common.collect` in **every** version (threshold
+  130–146 classes; `collect` has 179–217). It is the main architectural smell
+  of Guava, and it is permanent because its classes are public API.
+
+Table 17 – Architectural smells per version.
+
+| Version | Cyclic pkgs % | Cyclic classes % | Hub-like % | Unstable dep. % | God comp. | God components |
+|---|---|---|---|---|---|---|
+| 10.0 | 0.0 | 32.45 | 7.95 | 0.0 | 1 | common.collect |
+| 12.0 | 0.0 | 32.77 | 5.93 | 0.0 | 1 | common.collect |
+| 14.0 | 0.0 | 36.41 | 6.67 | 0.0 | 1 | common.collect |
+| 16.0 | 0.0 | 35.06 | 5.88 | 6.67 | 1 | common.collect |
+| 18.0 | 0.0 | 34.97 | 6.06 | 6.67 | 1 | common.collect |
+| 20.0 | 0.0 | 36.86 | 5.91 | 6.25 | 1 | common.collect |
+| 22.0 | 0.0 | 38.54 | 5.73 | 6.25 | 1 | common.collect |
+| 24.0 | 0.0 | 38.9 | 5.5 | 6.25 | 1 | common.collect |
+| 26.0 | 0.0 | 40.75 | 5.98 | 6.25 | 1 | common.collect |
+| 28.0 | 0.0 | 41.09 | 6.0 | 6.25 | 1 | common.collect |
+| 30.0 | 0.0 | 40.04 | 6.58 | 0.0 | 1 | common.collect |
+| 32.0.0 | 0.0 | 39.78 | 6.51 | 0.0 | 1 | common.collect |
+| 33.7.0 | 0.0 | 40.44 | 6.01 | 0.0 | 1 | common.collect |
+
+## 3.9 Lehman's laws: dependency changes and work rate
+
+![Figure 18 – Dependencies added and removed between sampled versions.](../results/figures/dependency_changes.png)
+
+![Figure 19 – Commits per month between the sampled releases.](../results/figures/activity.png)
+
+* **Law II – increasing complexity.** In 10 of the 12 intervals Guava **adds
+  more dependencies than it removes** (e.g. +538/−190 in 14.0, +508/−167 in
+  20.0). Only 18.0 (+59/−68) and 33.7.0 (+97/−168) are small net reductions.
+  Unlike
+  Spring AI there are no big restructuring releases, so complexity grows
+  almost unchecked, matching the rising dependency density (3.2).
+* **Law IV – conservation of organisational stability does not hold over 15
+  years.** The work rate falls from 64–68 commits/month (2011–2013) to 39–64
+  (2013–2018) and ≈ 22 (2018–2023), then rises again to 36 (2023–2026).
+  This fits a maturing library whose work shifts to maintenance. (Caveat:
+  until 18.0 Guava was mirrored from Google's internal repository, so only
+  4–7 author identities appear in that period.)
+* **Law VIII – feedback system.** Feedback reaches Guava through issues,
+  `@Beta` APIs that may change after user feedback, deprecation cycles before
+  removal, and the parallel JRE/Android flavours.
+* Guava is an **E-type** system: it has to follow the Java platform (Java 8
+  support between 20.0 and 24.0, JDK changes), so the laws apply. Its strong
+  compatibility promise is the reason laws II and VII show up so clearly:
+  public structure cannot be refactored away.
+
+Table 18 – Dependencies added and removed between sampled versions.
+
+| Version | Dependencies | Added | Removed |
+|---|---|---|---|
+| 12.0 | 1597 | 436 | 128 |
+| 14.0 | 1945 | 538 | 190 |
+| 16.0 | 2121 | 353 | 177 |
+| 18.0 | 2112 | 59 | 68 |
+| 20.0 | 2453 | 508 | 167 |
+| 22.0 | 2534 | 162 | 81 |
+| 24.0 | 2633 | 166 | 67 |
+| 26.0 | 2686 | 67 | 14 |
+| 28.0 | 2699 | 42 | 29 |
+| 30.0 | 2769 | 140 | 70 |
+| 32.0.0 | 2821 | 80 | 28 |
+| 33.7.0 | 2750 | 97 | 168 |
+
 # 4. Architecture recovery with AI (latest version only: 33.7.0)
 
 **Tool and protocol.** **Claude (Anthropic)** through Claude Code, with four
@@ -463,7 +704,7 @@ Table 10 – Components of the AI architecture (P3).
 
 Table 11 – AI (P3) architecture vs the other architectures of 33.7.0.
 
-| Architecture (33.7.0) | k | Largest | Cohesion | Coupling | BasicMQ | TurboMQ | TurboMQ/k | Intra deps |
+| Architecture (33.7.0) | k | Largest | Cohesion | Coupling | MQ (course) | TurboMQ | TurboMQ/k | Intra deps |
 |---|---|---|---|---|---|---|---|---|
 | AI (P3), full | 14 | 85 | 0.09365 | 0.003724 | 0.08993 | 8.042 | 0.5744 | 0.5578 |
 | AI (P3), no noise | 13 | 81 | 0.08532 | 0.001874 | 0.08344 | 8.918 | 0.686 | 0.701 |
@@ -487,8 +728,11 @@ Table 12 – Agreement (ARI) of the AI architecture with the other architectures
 * **Granularity.** AI: 14 components; packages: 17; k-means: 64–69; ACDC:
   84–90. The AI and the packages are at the level of a component diagram.
   The algorithmic architectures are fine-grained "class neighbourhoods".
-* **Quality.** The AI architecture has the **best TurboMQ/k of all (0.574;
-  0.686 without noise)**, ahead of the packages (0.469), k-means (0.33/0.48)
+* **Quality – the verdict depends on the measure.** By the **course MQ**,
+  ACDC is best (0.249), then k-means (0.167/0.184), and the coarse
+  decompositions are last: AI 0.090 and packages 0.084, because MQ's
+  cohesion divides by Nᵢ². On the k-independent measures the AI
+  architecture has the **best TurboMQ/k of all (0.574; 0.686 without noise)**, ahead of the packages (0.469), k-means (0.33/0.48)
   and ACDC (0.31/0.42). On the share of internal dependencies the packages
   are best (72 %), then the AI (56 %), then ACDC (36 %) and k-means (29 %).
   The AI pays for splitting `collect` into four parts. Merged, it beats the
@@ -499,6 +743,9 @@ Table 12 – Agreement (ARI) of the AI architecture with the other architectures
   the packages at only ≈ 0.1. For a library organised by feature, the
   developers' packages and an architect's view largely coincide, while
   connectivity-based clustering finds a different, cross-cutting structure.
+  With the lecture's MoJoFM and the AI architecture as reference, the packages
+  are closest (76 %), then k-means (69–75 %) and ACDC (66–69 %). In the other
+  direction the AI architecture is 94 % similar to the packages (3.6).
 * **Different principles.** The algorithms group classes that *use the same
   things*. For example, ACDC's `Multimaps.ss` cluster gathers the multimap
   implementations and their utilities, and `Hashing.ss` the hash functions.
@@ -511,7 +758,9 @@ k-independent metrics**. The package structure is a very good second
 choice. Unlike in an application framework, a library's packages are
 designed as the architecture. ACDC and k-means are useful to look *inside*
 the large packages (e.g. families in `collect`, `util.concurrent`), but not
-as the top-level architecture.
+as the top-level architecture. For *evolution* studies ACDC remains the best
+automatic method: it has the highest course MQ and is the most stable
+between versions (MoJoFM ≈ 89 % vs ≈ 72 % for k-means).
 
 ## 5.2 Does the AI tool help? How do information and prompts influence the result?
 
@@ -559,8 +808,8 @@ as the top-level architecture.
   original works) and needed a threshold fallback for 10.0 and 12.0. ACDC is
   the ARCADE port and needed file-style names (2.3).
 * **k-means** depends on the feature representation and on the elbow choice
-  of k. **Cohesion/BasicMQ/TurboMQ** depend strongly on k, so TurboMQ/k and the
-  intra share are our main comparable measures.
+  of k. **Cohesion, the course MQ and TurboMQ** depend strongly on k, so TurboMQ/k and the
+  intra share complement the course MQ when k differs strongly.
 
 # References
 
@@ -628,7 +877,7 @@ Table 7b – TurboMQ.
 | 32.0.0 | 27.5 | 33.4 | 21.8 | 27.3 | 7.9 |
 | 33.7.0 | 28.3 | 35.2 | 22.9 | 30.4 | 8.0 |
 
-Table 7c – BasicMQ.
+Table 7c – MQ (course definition).
 
 | Version | A1 ACDC | A2 ACDC−noise | A3 k-means | A4 k-means−noise | Packages |
 |---|---|---|---|---|---|
@@ -736,4 +985,4 @@ Table 9 – Package and class changes between sampled versions.
 
 ![Figure A1 – TurboMQ.](../results/figures/mq_turbo.png)
 
-![Figure A2 – BasicMQ.](../results/figures/mq_basic.png)
+![Figure A2 – MQ (course definition).](../results/figures/mq_basic.png)

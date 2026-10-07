@@ -38,6 +38,8 @@ python3 scripts/acdc_params.py           # ACDC parameter experiment on the late
 python3 scripts/noise_fanin.py           # noise classes vs fan-in
 python3 scripts/compare_noise.py         # original (3-decimal) vs fixed (4-decimal) JNode
 python3 scripts/module_changes.py        # module-level change log
+python3 scripts/lecture_metrics.py       # lecture analyses: MoJoFM, Bunch vs JNode, architectural smells, deps added/removed
+python3 scripts/activity.py <spring-ai clone>   # commits per month between releases (Lehman law IV)
 python3 scripts/ai_inputs.py             # Phase 4: inputs given to the AI tool
 python3 scripts/ai_eval.py               # Phase 4: metrics of the AI-recovered architecture
 python3 scripts/plots.py                 # figures in results/figures
@@ -68,6 +70,8 @@ recreated by `collect_versions.py`.
   subsystems of a package; the suffix is stripped again from the output.
   Usage: `java -jar tools/acdc.jar in.rsf out.rsf [maxClusterSize=20] [patterns=bso]`.
 * k-means: scikit-learn `KMeans`; k chosen with the elbow method (`kneed`).
+* `tools/mojo.jar` – MoJo 2.0 (York University, via USC ARCADE; source in `tools/mojo/src`) for MoJoFM (`java -jar tools/mojo.jar A.rsf B.rsf -fm`).
+* Quality measures follow Lecture 6–7: cohesion Aᵢ = μᵢ/Nᵢ², coupling Eᵢⱼ = εᵢⱼ/(2NᵢNⱼ), **MQ = mean(A) − mean(E)** (column `basic_mq`); TurboMQ, TurboMQ/k and the intra-cluster share are supplementary.
 
 ## Repository layout
 

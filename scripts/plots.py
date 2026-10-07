@@ -112,7 +112,7 @@ def main():
     for key, title, fname in [
         ("turbo_mq_norm", "Normalised TurboMQ (TurboMQ / #clusters)", "mq_turbo_norm.png"),
         ("turbo_mq", "TurboMQ", "mq_turbo.png"),
-        ("basic_mq", "BasicMQ (cohesion - coupling)", "mq_basic.png"),
+        ("basic_mq", "MQ (course definition) = mean cohesion − mean coupling", "mq_basic.png"),
         ("cohesion", "Cohesion (mean intra-connectivity)", "cohesion.png"),
         ("coupling", "Coupling (mean inter-connectivity)", "coupling.png"),
         ("intra_ratio", "Share of dependencies inside clusters", "intra_ratio.png"),
@@ -173,5 +173,88 @@ def main():
         save(fig, "acdc_params.png")
 
 
+def lecture_plots(vs):
+    """Figures for the lecture-based analyses (scripts/lecture_metrics.py)."""
+    x = range(len(vs))
+    p = os.path.join(RESULTS, "mojofm.csv")
+    if os.path.exists(p):
+        rows = {r["version"]: r for r in read("mojofm.csv")}
+        fig, ax = plt.subplots(figsize=(7.5, 3.6))
+        for a in ("A1", "A2", "A3", "A4"):
+            line(ax, x, [float(rows[v][f"{a}_vs_PKG"]) for v in vs], a)
+        setup(ax, vs, "MoJoFM (%)", "MoJoFM to the package structure (100 % = identical)")
+        ax.set_ylim(0, 100)
+        ax.legend(fontsize=7, ncol=2, loc="upper left", bbox_to_anchor=(0, -0.28))
+        save(fig, "mojofm_pkg.png")
+    p = os.path.join(RESULTS, "mojofm_stability.csv")
+    if os.path.exists(p):
+        rows = read("mojofm_stability.csv")
+        fig, ax = plt.subplots(figsize=(7.5, 3.6))
+        for a in ("A1", "A2", "A3", "A4"):
+            line(ax, range(len(rows)), [float(r[a]) for r in rows], a)
+        setup(ax, [r["to"] for r in rows], "MoJoFM (%)",
+              "MoJoFM between consecutive versions (architectural stability)")
+        ax.set_ylim(0, 100)
+        ax.legend(fontsize=7, ncol=2, loc="upper left", bbox_to_anchor=(0, -0.28))
+        save(fig, "mojofm_stability.png")
+    p = os.path.join(RESULTS, "bunch_noise.csv")
+    if os.path.exists(p):
+        rows = read("bunch_noise.csv")
+        fig, axs = plt.subplots(1, 2, figsize=(9, 3.4))
+        line(axs[0], x, [int(r["jnode_noise"]) for r in rows], "A2", "JNode (Constantinou et al.)")
+        line(axs[0], x, [int(r["bunch_noise"]) for r in rows], "A4", "Bunch (in-degree > 3·avg)")
+        line(axs[0], x, [int(r["common"]) for r in rows], "PKG", "in both")
+        setup(axs[0], vs, "omnipresent classes", "Omnipresent classes: JNode vs Bunch")
+        axs[0].set_ylim(0)
+        axs[0].legend(fontsize=7)
+        line(axs[1], x, [float(r["mojofm_A1_system"]) for r in rows], "A1", "System (A1)")
+        line(axs[1], x, [float(r["mojofm_A2_jnode"]) for r in rows], "A2", "Noise: JNode (A2)")
+        line(axs[1], x, [float(r["mojofm_A2_bunch"]) for r in rows], "A4", "Noise: Bunch")
+        setup(axs[1], vs, "MoJoFM to packages (%)", "ACDC: effect of removing omnipresent classes")
+        axs[1].legend(fontsize=7)
+        save(fig, "bunch_vs_jnode.png")
+    p = os.path.join(RESULTS, "smells.csv")
+    if os.path.exists(p):
+        rows = read("smells.csv")
+        fig, axs = plt.subplots(2, 2, figsize=(9, 6.2))
+        panels = [("cyclic_packages_pct", "cyclic_classes_pct", "Cyclic dependency", "% of packages / classes"),
+                  ("hub_like_pct", None, "Hub-like dependency", "% of classes"),
+                  ("unstable_dep_pct", None, "Unstable dependency", "% of packages"),
+                  ("god_components", None, "God component", "number of packages")]
+        for ax, (k1, k2, title, yl) in zip(axs.flat, panels):
+            line(ax, x, [float(r[k1]) for r in rows], "A1", "packages" if k2 else title)
+            if k2:
+                line(ax, x, [float(r[k2]) for r in rows], "A2", "classes")
+                ax.legend(fontsize=7)
+            setup(ax, vs, yl, title)
+            ax.set_ylim(0)
+        fig.tight_layout()
+        save(fig, "smells.png")
+    p = os.path.join(RESULTS, "dependency_changes.csv")
+    if os.path.exists(p):
+        rows = read("dependency_changes.csv")
+        fig, ax = plt.subplots(figsize=(7.5, 3.4))
+        xs = list(range(len(rows)))
+        ax.bar([i - 0.2 for i in xs], [int(r["added"]) for r in rows], 0.4,
+               color=COLORS["A4"], label="added")
+        ax.bar([i + 0.2 for i in xs], [-int(r["removed"]) for r in rows], 0.4,
+               color=COLORS["A1"], label="removed")
+        ax.axhline(0, color=MUTED, lw=0.8)
+        setup(ax, [r["to"] for r in rows], "class dependencies",
+              "Dependencies added / removed per version (law II)")
+        ax.legend(fontsize=7)
+        save(fig, "dependency_changes.png")
+    p = os.path.join(RESULTS, "activity.csv")
+    if os.path.exists(p):
+        rows = read("activity.csv")
+        fig, ax = plt.subplots(figsize=(7.5, 3.2))
+        line(ax, range(len(rows)), [float(r["commits_per_month"]) for r in rows], "A3", "commits / month")
+        setup(ax, [r["to"] for r in rows], "commits per month",
+              "Work rate between analysed releases (law IV)")
+        ax.set_ylim(0)
+        save(fig, "activity.png")
+
+
 if __name__ == "__main__":
     main()
+    lecture_plots([r["version"] for r in read("size.csv")])

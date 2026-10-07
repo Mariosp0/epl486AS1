@@ -1,0 +1,14 @@
+version,classes,packages,cyclic_packages,cyclic_packages_pct,cyclic_classes,cyclic_classes_pct,hub_like_classes,hub_like_pct,unstable_dep_packages,unstable_dep_pct,god_components,god_component_threshold,god_component_names
+10.0,302,8,0,0.0,98,32.45,24,7.95,0,0.0,1,146.4,com.google.common.collect
+12.0,354,11,0,0.0,116,32.77,21,5.93,0,0.0,1,132.8,com.google.common.collect
+14.0,390,11,0,0.0,142,36.41,26,6.67,0,0.0,1,139.5,com.google.common.collect
+16.0,425,15,0,0.0,149,35.06,25,5.88,1,6.67,1,126.6,com.google.common.collect
+18.0,429,15,0,0.0,150,34.97,26,6.06,1,6.67,1,127.1,com.google.common.collect
+20.0,491,16,0,0.0,181,36.86,29,5.91,1,6.25,1,124.1,com.google.common.collect
+22.0,506,16,0,0.0,195,38.54,29,5.73,1,6.25,1,127.8,com.google.common.collect
+24.0,527,16,0,0.0,205,38.9,29,5.5,1,6.25,1,131.0,com.google.common.collect
+26.0,535,16,0,0.0,218,40.75,32,5.98,1,6.25,1,134.4,com.google.common.collect
+28.0,533,16,0,0.0,219,41.09,32,6.0,1,6.25,1,133.7,com.google.common.collect
+30.0,547,16,0,0.0,219,40.04,36,6.58,0,0.0,1,135.1,com.google.common.collect
+32.0.0,553,16,0,0.0,220,39.78,36,6.51,0,0.0,1,136.6,com.google.common.collect
+33.7.0,549,17,0,0.0,222,40.44,33,6.01,0,0.0,1,129.8,com.google.common.collect
