@@ -11,9 +11,9 @@
 
 No other logic is touched (CR model, Dijkstra, SIG and the noise threshold are
 unchanged). Validation: the output CSV is **byte-identical** to the original
-JNode for 0.8.0, 1.0.0-M1 and 1.0.0-M2 (originals kept in `data/noise_original/`).
-Runtime for 1.0.0-M1 dropped from ~9 min to ~1.3 min; the original needed >2 h
-per 2k-class version.
+JNode for Guava 10.0 and 12.0 (original outputs kept in
+`guava/data/noise_original/`). The original needed more than two hours for
+the larger versions; the patched tool needs minutes.
 
 Rebuild:
 ```bash
@@ -32,12 +32,11 @@ Why: the CR model initialises every class weight with `round(1/n, 3)`. For more
 than 2,000 class files `1/n < 0.0005` rounds to **0**; the weights collapse, the
 shortest-path "probabilities" become 0, `1/0 = Infinity`, and the min-max
 normalisation turns every SIG into 0, so **no class is flagged**. This happened
-for exactly the four versions with > 2,000 class files (2.0.0-M2: 2,025,
-2.0.0-M3: 2,177, 2.0.0-M4: 2,184, 2.1.0-M1: 2,015). With 4 decimals the limit
-moves to 20,000 classes. All 25 versions were re-run with the 4-decimal
-variant for consistency; `scripts/compare_noise.py` compares it with the
-original (3-decimal) outputs kept in `data/noise_jnode3/`
-(`results/noise_comparison.csv`).
+for Guava 30.0, the only analysed version with more than 2,000 class files
+(2,010). With 4 decimals the limit moves to 20,000 classes. All 13 versions
+were run with the 4-decimal variant for consistency; `scripts/compare_noise.py`
+compares it with the 3-decimal outputs kept in `guava/data/noise_jnode3/`
+(`guava/results/noise_comparison.csv`).
 
 Rebuild: compile `tools/jnode-patch/CRModel.java` the same way and
 `jar uf tools/JNode-fast-p4.jar jnode/workers/CRModel.class` on a copy of

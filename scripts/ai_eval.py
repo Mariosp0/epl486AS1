@@ -3,8 +3,9 @@
 
 Maps every class of the latest version to a component using the ordered
 (component, regex-over-package) rules returned by the AI (first match wins),
-then computes the same metrics as for ACDC/k-means, the component dependency
-matrix, and the agreement (adjusted Rand index) with A1-A4 and the packages.
+then computes the same metrics as for ACDC/k-means (cohesion, coupling, MQ)
+and the component dependency matrix. The MoJoFM comparison with the other
+architectures is done in scripts/lecture_metrics.py.
 
 Outputs: results/ai_metrics.csv, results/ai_component_deps.csv,
          results/ai_components.csv, results/clusters/<v>_AI.rsf
@@ -14,8 +15,6 @@ import os
 import re
 import sys
 from collections import Counter
-
-from sklearn.metrics import adjusted_rand_score
 
 from common import (PREFIX, PROJECT_DIR, RESULTS, load_dependencies, load_noise,
                     package, versions, write_csv)
@@ -66,11 +65,6 @@ def main():
     for label, cl, graph in (("AI (full)", ai, edges), ("AI (no noise)", ai_nn, e_nn)):
         r = {"version": v, "arch": label}
         r.update(evaluate(cl, graph))
-        for other in ("A1", "A2", "A3", "A4", "PKG"):
-            o = read_clusters(os.path.join(cdir, f"{v}_{other}.rsf"))
-            common = sorted(set(o) & set(cl))
-            r[f"ari_vs_{other}"] = round(adjusted_rand_score(
-                [o[c] for c in common], [cl[c] for c in common]), 4)
         rows.append(r)
         print(r)
     write_csv(os.path.join(RESULTS, "ai_metrics.csv"), rows)

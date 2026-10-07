@@ -14,23 +14,23 @@ Graph library,"Collection utilities, views & ordering",37
 Immutable collections,Base utilities,33
 Caching,Base utilities,27
 "Escaping, networking & public suffix",Base utilities,26
-"Concurrency (futures, services, executors)","Collection utilities, views & ordering",23
 Reflection,Base utilities,23
+"Concurrency (futures, services, executors)","Collection utilities, views & ordering",23
 Hashing,Base utilities,22
 Ranges & discrete domains,Immutable collections,21
 Graph library,Immutable collections,20
-"Collection utilities, views & ordering","Multi-collections (Multimap, Multiset, BiMap, Table)",18
 Ranges & discrete domains,Base utilities,18
+"Collection utilities, views & ordering","Multi-collections (Multimap, Multiset, BiMap, Table)",18
 "Concurrency (futures, services, executors)",Immutable collections,17
 Reflection,"Collection utilities, views & ordering",15
 Reflection,Immutable collections,12
-Caching,"Concurrency (futures, services, executors)",11
 "Collection utilities, views & ordering",Primitives & math,11
+Caching,"Concurrency (futures, services, executors)",11
 Caching,Immutable collections,10
-"Multi-collections (Multimap, Multiset, BiMap, Table)",Immutable collections,10
 Event bus,Base utilities,10
-Hashing,Primitives & math,9
+"Multi-collections (Multimap, Multiset, BiMap, Table)",Immutable collections,10
 "Escaping, networking & public suffix",Immutable collections,9
+Hashing,Primitives & math,9
 Graph library,"Multi-collections (Multimap, Multiset, BiMap, Table)",8
 I/O,Hashing,7
 "Collection utilities, views & ordering",Ranges & discrete domains,7
@@ -38,27 +38,27 @@ I/O,Hashing,7
 "Multi-collections (Multimap, Multiset, BiMap, Table)",Primitives & math,6
 I/O,Immutable collections,6
 Immutable collections,Primitives & math,5
-I/O,Primitives & math,4
-Graph library,Primitives & math,4
-I/O,Graph library,4
-Caching,"Collection utilities, views & ordering",4
 Immutable collections,Ranges & discrete domains,4
-"Concurrency (futures, services, executors)",Primitives & math,4
-"Concurrency (futures, services, executors)","Multi-collections (Multimap, Multiset, BiMap, Table)",4
+Graph library,Primitives & math,4
 I/O,"Collection utilities, views & ordering",4
-"Escaping, networking & public suffix",Hashing,3
+Caching,"Collection utilities, views & ordering",4
+I/O,Graph library,4
+"Concurrency (futures, services, executors)","Multi-collections (Multimap, Multiset, BiMap, Table)",4
+"Concurrency (futures, services, executors)",Primitives & math,4
+I/O,Primitives & math,4
 Event bus,"Collection utilities, views & ordering",3
 Reflection,I/O,3
 "Escaping, networking & public suffix","Multi-collections (Multimap, Multiset, BiMap, Table)",3
-"Escaping, networking & public suffix","Collection utilities, views & ordering",3
 Event bus,Caching,3
-Event bus,"Multi-collections (Multimap, Multiset, BiMap, Table)",2
-"Escaping, networking & public suffix",I/O,2
-"Escaping, networking & public suffix",Primitives & math,2
-Ranges & discrete domains,Primitives & math,2
-Event bus,Immutable collections,2
+"Escaping, networking & public suffix","Collection utilities, views & ordering",3
+"Escaping, networking & public suffix",Hashing,3
 Event bus,"Concurrency (futures, services, executors)",2
 Caching,Primitives & math,2
+"Escaping, networking & public suffix",Primitives & math,2
+Ranges & discrete domains,Primitives & math,2
+Event bus,"Multi-collections (Multimap, Multiset, BiMap, Table)",2
+Event bus,Immutable collections,2
+"Escaping, networking & public suffix",I/O,2
 Event bus,Reflection,1
 Reflection,Primitives & math,1
 Event bus,Primitives & math,1

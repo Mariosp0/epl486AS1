@@ -22,12 +22,11 @@
      dependency cycle (strongly connected component of size > 1);
    * hub-like dependency - class with fan-in and fan-out above the system
      medians and |fan-in - fan-out| < 0.25 (fan-in + fan-out) (slide 29);
-   * unstable dependency - package P (instability I = Ce / (Ca + Ce)) of which
-     more than 30 % of the package dependencies point to packages less stable
-     than P (threshold used by the Arcan tool of Fontana et al.);
+   * unstable dependency - package P (instability I = Ce / (Ca + Ce)) that
+     depends on at least one package that is less stable than P (L5, slide 28);
    * god component - package with more classes than mean + 2 std of the
-     package sizes (the lecture leaves the threshold open; we measure size in
-     top-level classes because we analyse bytecode).
+     package sizes (the lecture asks for a size threshold without fixing it;
+     size is measured in top-level classes because we analyse bytecode).
    -> results/smells.csv
 """
 import os
@@ -76,7 +75,7 @@ def smells(nodes, edges):
         ca, ce = pg.in_degree(p), pg.out_degree(p)
         inst[p] = ce / (ca + ce) if ca + ce else 0.0
     ud = [p for p in pg if pg.out_degree(p)
-          and sum(inst[q] > inst[p] for q in pg.successors(p)) / pg.out_degree(p) > 0.3]
+          and any(inst[q] > inst[p] for q in pg.successors(p))]
     size = Counter(pkg_of.values())
     thr = st.mean(size.values()) + 2 * st.pstdev(size.values())
     gc = [p for p, n in size.items() if n > thr]
@@ -153,7 +152,7 @@ def main():
             "version": v, "avg_in_degree": round(avg, 2), "bunch_threshold": round(3 * avg, 2),
             "bunch_noise": len(bunch), "jnode_noise": len(jnode), "common": len(jnode & bunch),
             "jaccard": round(len(jnode & bunch) / len(union), 3) if union else 1.0,
-            "mq_A1_system": None, "mq_A2_jnode": None, "mq_A2_bunch": m["basic_mq"],
+            "mq_A1_system": None, "mq_A2_jnode": None, "mq_A2_bunch": m["mq"],
             "mojofm_A1_system": res[("mojo", v, "A1", "PKG")],
             "mojofm_A2_jnode": res[("mojo", v, "A2", "PKG_nonoise")],
             "mojofm_A2_bunch": mojofm(out, cpath(v, "PKG")),
@@ -168,7 +167,7 @@ def main():
 
     import csv
     with open(os.path.join(RESULTS, "metrics.csv")) as f:
-        mq = {(r["version"], r["arch"]): r["basic_mq"] for r in csv.DictReader(f)}
+        mq = {(r["version"], r["arch"]): r["mq"] for r in csv.DictReader(f)}
     for r in bunch_rows:
         r["mq_A1_system"] = mq[(r["version"], "A1")]
         r["mq_A2_jnode"] = mq[(r["version"], "A2")]

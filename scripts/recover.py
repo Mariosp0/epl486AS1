@@ -8,12 +8,11 @@ For every version:
   * A1/A2: runs ACDC (tools/acdc.jar) with and without the noise classes,
   * A3/A4: runs k-means (scikit-learn) with and without the noise classes,
   * PKG : the developers' package decomposition, used as a reference,
-  * evaluates every recovered architecture with scripts/metrics.py,
-  * also stores how stable each architecture is between consecutive versions
-    (adjusted Rand index over the classes present in both versions).
+  * evaluates every recovered architecture with scripts/metrics.py
+    (cohesion, coupling, MQ).
 
 Outputs: results/size.csv, results/metrics.csv, results/kselection.csv,
-         results/stability.csv, results/clusters/<v>_<arch>.rsf
+         results/noise_classes.csv, results/clusters/<v>_<arch>.rsf
 Usage: [JOBS=n] python3 scripts/recover.py [version ...]
 """
 import os
@@ -26,7 +25,6 @@ import numpy as np
 from scipy import sparse
 from sklearn.cluster import KMeans
 from sklearn.decomposition import TruncatedSVD
-from sklearn.metrics import adjusted_rand_score, silhouette_score
 from sklearn.preprocessing import normalize
 from kneed import KneeLocator
 
@@ -114,17 +112,16 @@ def k_candidates(n):
 
 
 def run_kmeans(nodes, edges, version, arch, ksel_rows):
-    """Choose k with the elbow method (Kneedle on the k-means inertia curve),
-    then cluster with k-means. The silhouette coefficient is recorded too."""
+    """Choose k with the elbow method on the k-means inertia curve (the
+    elbow point is located automatically with the Kneedle algorithm), then
+    cluster with k-means."""
     x = embedding(nodes, edges)
     ks, inertia = k_candidates(len(nodes)), []
     for k in ks:
         km = KMeans(n_clusters=k, n_init=5, random_state=SEED).fit(x)
         inertia.append(km.inertia_)
-        sil = silhouette_score(x, km.labels_, metric="cosine", random_state=SEED)
         ksel_rows.append({"version": version, "arch": arch, "k": k,
-                          "inertia": round(float(km.inertia_), 3),
-                          "silhouette": round(float(sil), 4)})
+                          "inertia": round(float(km.inertia_), 3)})
     k = KneeLocator(ks, inertia, curve="convex", direction="decreasing").knee
     labels = KMeans(n_clusters=k, n_init=10, random_state=SEED).fit_predict(x)
     return {n: f"km{l}" for n, l in zip(nodes, labels)}, k
@@ -177,12 +174,8 @@ def analyse(v):
         graph = e_nn if a in ("A2", "A4", "PKG_nonoise") else edges
         row = {"version": v, "arch": a}
         row.update(evaluate(cl, graph))
-        ref = res["PKG" if a in ("A1", "A3") else "PKG_nonoise"]
-        common = sorted(set(cl) & set(ref))
-        row["ari_vs_packages"] = round(adjusted_rand_score(
-            [ref[c] for c in common], [cl[c] for c in common]), 4)
         metric_rows.append(row)
-    print(v, {m["arch"]: m["turbo_mq_norm"] for m in metric_rows},
+    print(v, {m["arch"]: m["mq"] for m in metric_rows},
           f"k3={k3} k4={k4} noise={len(noise)}", flush=True)
     return v, res, size_rows, metric_rows, ksel_rows, noise_rows
 
@@ -192,31 +185,18 @@ def main():
     os.makedirs(os.path.join(DATA, "rsf"), exist_ok=True)
     os.makedirs(os.path.join(RESULTS, "clusters"), exist_ok=True)
     size_rows, metric_rows, ksel_rows, noise_rows = [], [], [], []
-    archs = {}
     jobs = int(os.environ.get("JOBS", os.cpu_count() or 1))
     with ProcessPoolExecutor(jobs) as ex:
         for v, res, sz, mt, ks, nz in ex.map(analyse, vs):  # keeps version order
-            archs[v] = res
             size_rows += sz
             metric_rows += mt
             ksel_rows += ks
             noise_rows += nz
 
-    stab_rows = []
-    for prev, cur in zip(vs, vs[1:]):
-        row = {"from": prev, "to": cur}
-        for a in ("A1", "A2", "A3", "A4", "PKG"):
-            p, c = archs[prev][a], archs[cur][a]
-            common = sorted(set(p) & set(c))
-            row[a] = round(adjusted_rand_score([p[x] for x in common],
-                                               [c[x] for x in common]), 4)
-        stab_rows.append(row)
-
     if len(vs) == len(versions()):
         write_csv(os.path.join(RESULTS, "size.csv"), size_rows)
         write_csv(os.path.join(RESULTS, "metrics.csv"), metric_rows)
         write_csv(os.path.join(RESULTS, "kselection.csv"), ksel_rows)
-        write_csv(os.path.join(RESULTS, "stability.csv"), stab_rows)
         write_csv(os.path.join(RESULTS, "noise_classes.csv"), noise_rows)
 
 

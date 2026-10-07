@@ -110,52 +110,31 @@ def main():
     by = {(r["version"], r["arch"]): r for r in met}
     archs = ["A1", "A2", "A3", "A4", "PKG"]
     for key, title, fname in [
-        ("turbo_mq_norm", "Normalised TurboMQ (TurboMQ / #clusters)", "mq_turbo_norm.png"),
-        ("turbo_mq", "TurboMQ", "mq_turbo.png"),
-        ("basic_mq", "MQ (course definition) = mean cohesion − mean coupling", "mq_basic.png"),
+        ("mq", "MQ = mean cohesion − mean coupling", "mq.png"),
         ("cohesion", "Cohesion (mean intra-connectivity)", "cohesion.png"),
         ("coupling", "Coupling (mean inter-connectivity)", "coupling.png"),
-        ("intra_ratio", "Share of dependencies inside clusters", "intra_ratio.png"),
         ("clusters", "Number of clusters", "clusters.png"),
     ]:
         fig, ax = plt.subplots(figsize=(7.5, 3.6))
         for a in archs:
             line(ax, x, [float(by[(v, a)][key]) for v in vs], a, dashed=a == "PKG")
         setup(ax, vs, key, title)
-        if key not in ("basic_mq",):
-            ax.set_ylim(0)
+        ax.set_ylim(0)
         ax.legend(fontsize=7, ncol=3, loc="upper left", bbox_to_anchor=(0, -0.28))
         save(fig, fname)
-
-    stab = read("stability.csv")
-    fig, ax = plt.subplots(figsize=(7.5, 3.6))
-    xs = range(len(stab))
-    for a in ("A1", "A2", "A3", "A4"):
-        line(ax, xs, [float(r[a]) for r in stab], a)
-    setup(ax, [r["to"] for r in stab], "ARI vs previous version",
-          "Architectural stability between consecutive versions")
-    ax.set_ylim(0, 1.05)
-    ax.legend(fontsize=7, ncol=3, loc="upper left", bbox_to_anchor=(0, -0.28))
-    save(fig, "stability.png")
 
     ks = read("kselection.csv")
     latest = vs[-1]
     chosen = {r["arch"]: int(r["clusters"]) for r in met if r["version"] == latest}
-    fig, axs = plt.subplots(1, 2, figsize=(9, 3.2))
+    fig, ax = plt.subplots(figsize=(6, 3.2))
     for a in ("A3", "A4"):
         rows = [r for r in ks if r["version"] == latest and r["arch"] == a]
-        kk = [int(r["k"]) for r in rows]
-        line(axs[0], kk, [float(r["inertia"]) for r in rows], a)
-        line(axs[1], kk, [float(r["silhouette"]) for r in rows], a)
-        for ax in axs:
-            ax.axvline(chosen[a], color=COLORS[a], lw=1, ls=":")
-    axs[0].set_title(f"Elbow: k-means inertia ({latest})", loc="left", fontsize=10)
-    axs[1].set_title(f"Silhouette (cosine) ({latest})", loc="left", fontsize=10)
-    for ax in axs:
-        ax.set_xlabel("k")
-        ax.legend(fontsize=7)
-    axs[0].set_ylabel("inertia")
-    axs[1].set_ylabel("silhouette")
+        line(ax, [int(r["k"]) for r in rows], [float(r["inertia"]) for r in rows], a)
+        ax.axvline(chosen[a], color=COLORS[a], lw=1, ls=":")
+    ax.set_title(f"Elbow method: k-means inertia ({latest})", loc="left", fontsize=10)
+    ax.set_xlabel("k")
+    ax.set_ylabel("inertia (within-cluster sum of squares)")
+    ax.legend(fontsize=7)
     save(fig, "kselection_latest.png")
 
     p = os.path.join(RESULTS, "acdc_params.csv")
@@ -165,16 +144,17 @@ def main():
         for pat, key in (("bso", "A1"), ("so", "A3"), ("bs", "A2")):
             rr = [r for r in rows if r["patterns"] == pat and r["graph"] == "full"]
             line(ax, [int(r["max_cluster_size"]) for r in rr],
-                 [float(r["turbo_mq_norm"]) for r in rr], key, f"patterns={pat}")
+                 [float(r["mq"]) for r in rr], key, f"patterns={pat}")
         ax.set_xlabel("ACDC max cluster size (SubGraph pattern)")
-        ax.set_ylabel("TurboMQ / k")
+        ax.set_ylabel("MQ")
         ax.set_title(f"ACDC parameter experiment ({latest}, full system)", loc="left", fontsize=10)
         ax.legend(fontsize=7)
         save(fig, "acdc_params.png")
 
 
 def lecture_plots(vs):
-    """Figures for the lecture-based analyses (scripts/lecture_metrics.py)."""
+    """Figures for MoJoFM, omnipresent classes, smells and Lehman's laws
+    (scripts/lecture_metrics.py, scripts/activity.py)."""
     x = range(len(vs))
     p = os.path.join(RESULTS, "mojofm.csv")
     if os.path.exists(p):

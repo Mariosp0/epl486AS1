@@ -71,13 +71,14 @@ prefix com.google. omitted).
 ## P4 – follow-up with the quality metrics
 
 Inputs: P3 conversation + the metrics of the P3 architecture computed by
-`scripts/ai_eval.py` (`guava/results/ai_metrics.csv`) next to ACDC/k-means.
+`scripts/ai_eval.py` and `scripts/lecture_metrics.py` (cohesion, coupling, MQ,
+MoJoFM) next to ACDC, k-means and the packages.
 
 ```text
 I mapped every class to your components and computed the metrics below
 (cohesion = mean intra-connectivity, coupling = mean inter-connectivity,
-TurboMQ, share of dependencies inside components) next to the ACDC and
-k-means architectures of the same version.
+MQ = mean cohesion - mean coupling, MoJoFM to the package structure) next to
+the ACDC and k-means architectures and the packages of the same version.
 <metrics table: see the top of guava/ai/responses/P4_response.md>
 Explain the differences. Would you change your decomposition, and if so how,
 without losing its meaning for a developer?

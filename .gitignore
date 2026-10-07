@@ -5,3 +5,5 @@ logs/
 guava/locks/
 guava/logs/
 guava/report/report.html
+guava/data/noise_jnode3/
+guava/data/noise_original/

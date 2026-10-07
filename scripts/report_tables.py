@@ -29,8 +29,6 @@ def main():
     size = {r["version"]: r for r in read(os.path.join(RESULTS, "size.csv"))}
     met = read(os.path.join(RESULTS, "metrics.csv"))
     by = {(m["version"], m["arch"]): m for m in met}
-    stab = read(os.path.join(RESULTS, "stability.csv"))
-    nf = {r["version"]: r for r in read(os.path.join(RESULTS, "noise_vs_fanin.csv"))}
     ncp = os.path.join(RESULTS, "noise_comparison.csv")
     nc = {r["version"]: r for r in read(ncp)} if os.path.exists(ncp) else None
     vs = [v["version"] for v in vers]
@@ -56,12 +54,12 @@ def main():
         s = size[v]
         cmp_ = [nc[v]["jnode3_noise"], nc[v]["jnode4_noise"], nc[v]["jaccard"]] if nc else []
         rows.append([v, s["connected_classes"], s["isolated_classes"], s["noise_classes"],
-                     s["noise_pct"] + "%"] + cmp_ + [nf[v]["top30_fanin_flagged"],
+                     s["noise_pct"] + "%"] + cmp_ + [
                      "yes" if s["noise_fallback"] == "True" else ""])
     t["TABLE_NOISE"] = table(["Version", "Connected classes", "Isolated", "Noise (top-level)",
                               "Noise %"] +
                              (["JNode-3 noise files", "JNode-4 noise files", "Jaccard 3 vs 4"] if nc else [])
-                             + ["Top-30 fan-in flagged", "Fallback"], rows)
+                             + ["Fallback"], rows)
 
     def arch_table(key, fmt="{}"):
         rows = []
@@ -72,32 +70,26 @@ def main():
                       "A4 k-means−noise", "Packages"], rows)
 
     t["TABLE_K"] = arch_table("clusters", "{:.0f}")
-    t["TABLE_TMQN"] = arch_table("turbo_mq_norm", "{:.3f}")
-    t["TABLE_TMQ"] = arch_table("turbo_mq", "{:.1f}")
-    t["TABLE_BASICMQ"] = arch_table("basic_mq", "{:.4f}")
+    t["TABLE_MQ"] = arch_table("mq", "{:.4f}")
     t["TABLE_COH"] = arch_table("cohesion", "{:.4f}")
     t["TABLE_COUP"] = arch_table("coupling", "{:.5f}")
-    t["TABLE_INTRA"] = arch_table("intra_ratio", "{:.3f}")
 
     def mean(a, key):
         xs = [float(by[(v, a)][key]) for v in vs]
         return sum(xs) / len(xs)
 
+    mojo = {r["version"]: r for r in read(os.path.join(RESULTS, "mojofm.csv"))}
     rows = []
     for a, name in (("A1", "A1 ACDC (full)"), ("A2", "A2 ACDC (no noise)"),
                     ("A3", "A3 k-means (full)"), ("A4", "A4 k-means (no noise)"),
                     ("PKG", "Packages (full)"), ("PKG_nonoise", "Packages (no noise)")):
+        mj = (f"{sum(float(mojo[v][f'{a}_vs_PKG']) for v in vs) / len(vs):.1f}"
+              if a.startswith("A") else "–")
         rows.append([name, f"{mean(a, 'clusters'):.0f}", f"{mean(a, 'max_cluster'):.0f}",
                      f"{mean(a, 'cohesion'):.4f}", f"{mean(a, 'coupling'):.5f}",
-                     f"{mean(a, 'basic_mq'):.4f}", f"{mean(a, 'turbo_mq'):.1f}",
-                     f"{mean(a, 'turbo_mq_norm'):.3f}", f"{mean(a, 'intra_ratio'):.3f}",
-                     f"{mean(a, 'ari_vs_packages'):.3f}"])
+                     f"{mean(a, 'mq'):.4f}", mj])
     t["TABLE_MEANS"] = table(["Architecture", "k", "Largest cluster", "Cohesion", "Coupling",
-                              "MQ (course)", "TurboMQ", "TurboMQ/k", "Intra deps",
-                              "ARI vs packages"], rows)
-
-    rows = [[r["to"]] + [r[a] for a in ("A1", "A2", "A3", "A4")] for r in stab]
-    t["TABLE_STAB"] = table(["Version (vs previous)", "A1", "A2", "A3", "A4"], rows)
+                              "MQ", "MoJoFM to packages (%)"], rows)
 
     ai = read(os.path.join(RESULTS, "ai_metrics.csv"))
     latest = vs[-1]
@@ -106,22 +98,18 @@ def main():
                    [(n, by[(latest, a)]) for n, a in (("A1 ACDC", "A1"), ("A2 ACDC−noise", "A2"),
                                                       ("A3 k-means", "A3"), ("A4 k-means−noise", "A4"),
                                                       ("Packages", "PKG"))]:
-        rows.append([name, m["clusters"], m["max_cluster"], m["cohesion"], m["coupling"],
-                     m["basic_mq"], m["turbo_mq"], m["turbo_mq_norm"], m["intra_ratio"]])
+        rows.append([name, m["clusters"], m["max_cluster"], m["cohesion"], m["coupling"], m["mq"]])
     t["TABLE_AI"] = table([f"Architecture ({latest})", "k", "Largest", "Cohesion", "Coupling",
-                           "MQ (course)", "TurboMQ", "TurboMQ/k", "Intra deps"], rows)
-    t["TABLE_AI_ARI"] = table(["", "A1", "A2", "A3", "A4", "Packages"],
-                              [[r["arch"]] + [r[f"ari_vs_{a}"] for a in ("A1", "A2", "A3", "A4", "PKG")]
-                               for r in ai])
+                           "MQ"], rows)
     t["TABLE_AI_COMP"] = table(["Component", "Classes"],
                                [[r["component"], r["classes"]] for r in
                                 read(os.path.join(RESULTS, "ai_components.csv"))])
 
     rows = [[r["graph"], r["patterns"], r["max_cluster_size"], r["clusters"], r["max_cluster"],
-             r["turbo_mq_norm"], r["intra_ratio"]]
+             r["cohesion"], r["coupling"], r["mq"]]
             for r in read(os.path.join(RESULTS, "acdc_params.csv"))]
-    t["TABLE_ACDC"] = table(["Graph", "Patterns", "Max size", "k", "Largest", "TurboMQ/k",
-                             "Intra deps"], rows)
+    t["TABLE_ACDC"] = table(["Graph", "Patterns", "Max size", "k", "Largest", "Cohesion",
+                             "Coupling", "MQ"], rows)
 
     mcp = os.path.join(RESULTS, "module_changes.csv")
     if os.path.exists(mcp):
