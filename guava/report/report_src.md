@@ -148,8 +148,9 @@ methods (`tools/jnode-patch/`):
    `round(1/n, 3)`. For **more than 2,000 class files** this rounds to **0**.
    All path weights then become 0, every SIG is normalised to 0, and no class
    is flagged. This happens for Guava **30.0 (2,010 class files)**. We therefore
-   round to 4 decimals. On the other 12 versions the noise sets of both
-   variants are compared in Table 3 (`guava/data/noise_jnode3/`).
+   round to 4 decimals for all versions. On the 10 versions where both variants
+   flag classes, the 4-decimal set is a subset of the 3-decimal set (Jaccard
+   0.80–0.97, Table 3; `guava/data/noise_jnode3/`).
 
 **JNode threshold.** JNode flags a class if its normalised SIG ≥ mean + 1σ
 (Lecture 6–7, step 4). For 10.0 and 12.0 this limit (1.010 and 1.023) lies

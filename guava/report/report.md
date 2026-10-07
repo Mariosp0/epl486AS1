@@ -162,8 +162,9 @@ methods (`tools/jnode-patch/`):
    `round(1/n, 3)`. For **more than 2,000 class files** this rounds to **0**.
    All path weights then become 0, every SIG is normalised to 0, and no class
    is flagged. This happens for Guava **30.0 (2,010 class files)**. We therefore
-   round to 4 decimals. On the other 12 versions the noise sets of both
-   variants are compared in Table 3 (`guava/data/noise_jnode3/`).
+   round to 4 decimals for all versions. On the 10 versions where both variants
+   flag classes, the 4-decimal set is a subset of the 3-decimal set (Jaccard
+   0.80–0.97, Table 3; `guava/data/noise_jnode3/`).
 
 **JNode threshold.** JNode flags a class if its normalised SIG ≥ mean + 1σ
 (Lecture 6–7, step 4). For 10.0 and 12.0 this limit (1.010 and 1.023) lies
@@ -274,21 +275,21 @@ and base APIs, so each new class adds dependencies to a dense core.
 Table 3 – Widely-used classes (JNode) per version, and comparison of the
 original (3-decimal) and fixed (4-decimal) JNode.
 
-| Version | Connected classes | Isolated | Noise (top-level) | Noise % | Fallback |
-|---|---|---|---|---|---|
-| 10.0 | 302 | 8 | 24 | 7.95% | yes |
-| 12.0 | 354 | 10 | 15 | 4.24% | yes |
-| 14.0 | 390 | 9 | 48 | 12.31% |  |
-| 16.0 | 425 | 10 | 58 | 13.65% |  |
-| 18.0 | 429 | 10 | 58 | 13.52% |  |
-| 20.0 | 491 | 8 | 68 | 13.85% |  |
-| 22.0 | 506 | 8 | 73 | 14.43% |  |
-| 24.0 | 527 | 7 | 75 | 14.23% |  |
-| 26.0 | 535 | 6 | 75 | 14.02% |  |
-| 28.0 | 533 | 6 | 75 | 14.07% |  |
-| 30.0 | 547 | 6 | 82 | 14.99% |  |
-| 32.0.0 | 553 | 5 | 68 | 12.3% |  |
-| 33.7.0 | 549 | 5 | 77 | 14.03% |  |
+| Version | Connected classes | Isolated | Noise (top-level) | Noise % | JNode-3 noise files | JNode-4 noise files | Jaccard 3 vs 4 | Fallback |
+|---|---|---|---|---|---|---|---|---|
+| 10.0 | 302 | 8 | 24 | 7.95% | 0 | 0 | 1.0 | yes |
+| 12.0 | 354 | 10 | 15 | 4.24% | 0 | 0 | 1.0 | yes |
+| 14.0 | 390 | 9 | 48 | 12.31% | 189 | 157 | 0.8307 |  |
+| 16.0 | 425 | 10 | 58 | 13.65% | 232 | 195 | 0.8405 |  |
+| 18.0 | 429 | 10 | 58 | 13.52% | 232 | 194 | 0.8362 |  |
+| 20.0 | 491 | 8 | 68 | 13.85% | 273 | 249 | 0.9121 |  |
+| 22.0 | 506 | 8 | 73 | 14.43% | 282 | 261 | 0.9255 |  |
+| 24.0 | 527 | 7 | 75 | 14.23% | 291 | 272 | 0.9347 |  |
+| 26.0 | 535 | 6 | 75 | 14.02% | 291 | 272 | 0.9347 |  |
+| 28.0 | 533 | 6 | 75 | 14.07% | 292 | 275 | 0.9418 |  |
+| 30.0 | 547 | 6 | 82 | 14.99% | 0 | 292 | 0.0 |  |
+| 32.0.0 | 553 | 5 | 68 | 12.3% | 265 | 212 | 0.8 |  |
+| 33.7.0 | 549 | 5 | 77 | 14.03% | 278 | 270 | 0.9712 |  |
 
 ![Figure 6 – Widely-used (noise) classes per version.](../results/figures/noise.png)
 
