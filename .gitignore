@@ -3,3 +3,6 @@ locks/
 logs_*.txt
 __pycache__/
 *.pyc
+logs/
+data/rsf/
+results/clusters/
