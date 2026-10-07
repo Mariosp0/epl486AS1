@@ -4,3 +4,4 @@ logs_*.txt
 __pycache__/
 *.pyc
 logs/
+report/report.html
