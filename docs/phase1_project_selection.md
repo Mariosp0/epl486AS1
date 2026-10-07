@@ -37,10 +37,10 @@ confirmed with the instructor in the approval e-mail (draft below).
 
 ## Version selection and cleaning
 
-All 48 tags were retrieved (`git ls-remote --tags`). Cleaning rules:
+All 48 tags were retrieved (`data/tags.csv`: 4 GA, 21 milestones, 4 RCs, 19 patches) (`git ls-remote --tags`). Cleaning rules:
 
 * **Excluded – patch releases** (`x.y.z`, z > 0: 0.8.1, 1.0.1–1.0.9, 1.1.1–1.1.8,
-  2.0.1; 21 tags): bug-fix-only maintenance branches that are released in
+  2.0.1; 19 tags): bug-fix-only maintenance branches that are released in
   parallel with newer lines and would break the chronological order.
 * **Excluded – release candidates** (1.0.0-RC1, 1.1.0-RC1, 2.0.0-RC1, 2.0.0-RC2;
   4 tags): feature-frozen and practically identical to the following GA.
