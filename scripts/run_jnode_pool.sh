@@ -10,7 +10,7 @@ worker() {
   for v in $(tail -n +2 data/versions.csv | cut -d, -f1 | tac); do
     [ -s "data/noise/$v.csv" ] && continue
     mkdir "locks/$v" 2>/dev/null || continue
-    java -Xmx3g -jar tools/JNode.jar "data/workspace/$v" > "logs/jnode_$v.log" 2>&1
+    java -Xmx3g -jar tools/JNode-fast.jar "data/workspace/$v" > "logs/jnode_$v.log" 2>&1
     mv "data/workspace/$v/jnodeOutput_$v.csv" "data/noise/$v.csv" && echo "done $v"
   done
 }

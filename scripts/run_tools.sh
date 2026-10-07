@@ -17,7 +17,7 @@ for v in "${VERSIONS[@]}"; do
     java -jar tools/DependencyExtractor.jar "$ws/bin/spring-ai-$v.jar" "data/dependencies/$v.csv" > "logs/deps_$v.log" 2>&1
   fi
   if [ ! -s "data/noise/$v.csv" ]; then
-    java -Xmx6g -jar tools/JNode.jar "$ws" > "logs/jnode_$v.log" 2>&1
+    java -Xmx6g -jar tools/JNode-fast.jar "$ws" > "logs/jnode_$v.log" 2>&1
     mv "$ws/jnodeOutput_$v.csv" "data/noise/$v.csv"
   fi
   echo "done $v"
