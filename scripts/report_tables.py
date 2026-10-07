@@ -108,7 +108,7 @@ def main():
                                                       ("Packages", "PKG"))]:
         rows.append([name, m["clusters"], m["max_cluster"], m["cohesion"], m["coupling"],
                      m["basic_mq"], m["turbo_mq"], m["turbo_mq_norm"], m["intra_ratio"]])
-    t["TABLE_AI"] = table(["Architecture (2.1.0-M1)", "k", "Largest", "Cohesion", "Coupling",
+    t["TABLE_AI"] = table([f"Architecture ({latest})", "k", "Largest", "Cohesion", "Coupling",
                            "BasicMQ", "TurboMQ", "TurboMQ/k", "Intra deps"], rows)
     t["TABLE_AI_ARI"] = table(["", "A1", "A2", "A3", "A4", "Packages"],
                               [[r["arch"]] + [r[f"ari_vs_{a}"] for a in ("A1", "A2", "A3", "A4", "PKG")]

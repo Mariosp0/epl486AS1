@@ -1,5 +1,9 @@
 # EPL484 Project 1 – Architecture evolution of Spring AI
 
+> **Two systems are analysed:** Spring AI (this root folder) and **Google
+> Guava** (folder [`guava/`](guava/README.md), 13 sparse releases 10.0–33.7.0).
+> The scripts in `scripts/` are shared; run them with `PROJECT=guava` for Guava.
+
 Recovery and evolution analysis of the architecture of
 [Spring AI](https://github.com/spring-projects/spring-ai) over **25 feature
 releases** (0.8.0, Feb 2024 → 2.1.0-M1, Sep 2026), following the five phases of
