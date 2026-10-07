@@ -42,6 +42,11 @@ def main():
             cl = sorted(by_pkg[p])
             f.write(f"{short(p)} | {len(cl)} | {', '.join(cl[:6])}\n")
 
+    with open(os.path.join(out, "classes.md"), "w") as f:
+        f.write(f"# {NAME} {v} - all top-level classes per package (prefix {PREFIX} omitted)\n\n")
+        for p in sorted(by_pkg):
+            f.write(f"## {short(p)} ({len(by_pkg[p])})\n{', '.join(sorted(by_pkg[p]))}\n\n")
+
     pe = Counter()
     for (s, d) in dep:
         ps, pd = package(s), package(d)

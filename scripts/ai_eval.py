@@ -42,8 +42,10 @@ def main():
     edges = set(dep)
     connected = sorted({c for e in edges for c in e})
 
+    by_class = cfg.get("match") == "class"  # rules over "pkg.Class" instead of "pkg"
+
     def component(cls):
-        p = package(cls)
+        p = cls if by_class else package(cls)
         p = p[len(PFX):] if p.startswith(PFX) else p
         for name, rx in rules:
             if rx.fullmatch(p):

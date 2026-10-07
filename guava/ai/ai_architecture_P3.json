@@ -1,0 +1,21 @@
+{
+  "version": "33.7.0",
+  "match": "class",
+  "source": "guava/ai/responses/P3_response.md (rules returned by the AI tool for prompt P3); matched against 'package.Class' with the com.google. prefix removed",
+  "rules": [
+    ["Graph library", "^common\\.graph\\..*"],
+    ["Caching", "^common\\.cache\\..*"],
+    ["Concurrency (futures, services, executors)", "^common\\.util\\.concurrent\\..*"],
+    ["Event bus", "^common\\.eventbus\\..*"],
+    ["Reflection", "^common\\.reflect\\..*"],
+    ["I/O", "^common\\.io\\..*"],
+    ["Hashing", "^common\\.hash\\..*"],
+    ["Escaping, networking & public suffix", "^common\\.(escape|html|xml|net)\\..*|^thirdparty\\..*"],
+    ["Primitives & math", "^common\\.(primitives|math)\\..*"],
+    ["Ranges & discrete domains", "^common\\.collect\\.(Range|RangeMap|RangeSet|AbstractRangeSet|TreeRangeMap|TreeRangeSet|ImmutableRangeMap|ImmutableRangeSet|Cut|BoundType|DiscreteDomain|ContiguousSet|RegularContiguousSet|EmptyContiguousSet|GeneralRange)$"],
+    ["Immutable collections", "^common\\.collect\\.(Immutable|Regular|Singleton|Empty|JdkBacked|Dense|Sparse|Descending|Indexed)\\w*$|^common\\.collect\\.BaseImmutableMultimap$"],
+    ["Multi-collections (Multimap, Multiset, BiMap, Table)", "^common\\.collect\\.\\w*(Multimap|Multiset|BiMap|Table)\\w*$"],
+    ["Collection utilities, views & ordering", "^common\\.collect\\..*"],
+    ["Base utilities", ".*"]
+  ]
+}
