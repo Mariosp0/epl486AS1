@@ -61,10 +61,15 @@ def main():
     vs = [r["version"] for r in size]
     x = range(len(vs))
 
+    with open(os.path.join(RESULTS, "..", "data", "versions.csv")) as f:
+        vrows = {r["version"]: r for r in csv.DictReader(f)}
     fig, ax = plt.subplots(figsize=(7.5, 3.4))
-    line(ax, x, [int(r["classes"]) for r in size], "A1", "Top-level classes")
-    setup(ax, vs, "classes", "Size: top-level classes per version")
+    line(ax, x, [int(vrows[v]["class_files"]) for v in vs], "A2",
+         "All class files (incl. inner/anonymous)")
+    line(ax, x, [int(vrows[v]["top_level_classes"]) for v in vs], "A1", "Top-level classes")
+    setup(ax, vs, "classes", "Size: classes per version")
     ax.set_ylim(0)
+    ax.legend(fontsize=7, loc="lower right")
     save(fig, "size_classes.png")
 
     fig, axs = plt.subplots(1, 2, figsize=(9, 3.2))
@@ -121,8 +126,8 @@ def main():
     stab = read("stability.csv")
     fig, ax = plt.subplots(figsize=(7.5, 3.6))
     xs = range(len(stab))
-    for a in archs:
-        line(ax, xs, [float(r[a]) for r in stab], a, dashed=a == "PKG")
+    for a in ("A1", "A2", "A3", "A4"):
+        line(ax, xs, [float(r[a]) for r in stab], a)
     setup(ax, [r["to"] for r in stab], "ARI vs previous version",
           "Architectural stability between consecutive versions")
     ax.set_ylim(0, 1.05)
@@ -131,14 +136,22 @@ def main():
 
     ks = read("kselection.csv")
     latest = vs[-1]
-    fig, ax = plt.subplots(figsize=(6, 3))
+    chosen = {r["arch"]: int(r["clusters"]) for r in met if r["version"] == latest}
+    fig, axs = plt.subplots(1, 2, figsize=(9, 3.2))
     for a in ("A3", "A4"):
         rows = [r for r in ks if r["version"] == latest and r["arch"] == a]
-        line(ax, [int(r["k"]) for r in rows], [float(r["silhouette"]) for r in rows], a)
-    ax.set_xlabel("k")
-    ax.set_ylabel("silhouette (cosine)")
-    ax.set_title(f"k selection for {latest}", loc="left", fontsize=10)
-    ax.legend(fontsize=7)
+        kk = [int(r["k"]) for r in rows]
+        line(axs[0], kk, [float(r["inertia"]) for r in rows], a)
+        line(axs[1], kk, [float(r["silhouette"]) for r in rows], a)
+        for ax in axs:
+            ax.axvline(chosen[a], color=COLORS[a], lw=1, ls=":")
+    axs[0].set_title(f"Elbow: k-means inertia ({latest})", loc="left", fontsize=10)
+    axs[1].set_title(f"Silhouette (cosine) ({latest})", loc="left", fontsize=10)
+    for ax in axs:
+        ax.set_xlabel("k")
+        ax.legend(fontsize=7)
+    axs[0].set_ylabel("inertia")
+    axs[1].set_ylabel("silhouette")
     save(fig, "kselection_latest.png")
 
     p = os.path.join(RESULTS, "acdc_params.csv")
@@ -146,7 +159,7 @@ def main():
         rows = read("acdc_params.csv")
         fig, ax = plt.subplots(figsize=(6, 3))
         for pat, key in (("bso", "A1"), ("so", "A3"), ("bs", "A2")):
-            rr = [r for r in rows if r["patterns"] == pat]
+            rr = [r for r in rows if r["patterns"] == pat and r["graph"] == "full"]
             line(ax, [int(r["max_cluster_size"]) for r in rr],
                  [float(r["turbo_mq_norm"]) for r in rr], key, f"patterns={pat}")
         ax.set_xlabel("ACDC max cluster size (SubGraph pattern)")

@@ -71,19 +71,19 @@ Small cycles: Model API ⇄ Commons (48 vs 8), Model API ⇄ Tool calling (37 vs
 
 ```
  ┌─────────────────────────────────────────────────────────────────────┐
- │ L5  Boot auto-configuration (221)        Dev services (23)          │
+ │ L5  Boot auto-configuration (214)        Dev services (23)          │
  └───────────────┬──────────────────────────────────┬──────────────────┘
  ┌───────────────▼──────────────────────────────────▼──────────────────┐
- │ L4  Model providers (148) │ Vector store impl. (62) │ Memory repos (24)│ ← adapters
+ │ L4  Model providers (147) │ Vector store impl. (62) │ Memory repos (24)│ ← adapters
  └───────────────┬──────────────────────────────────┬──────────────────┘
  ┌───────────────▼──────────────────────────────────▼──────────────────┐
  │ L3  ChatClient & Advisors (55) │ RAG & ETL (39) │ MCP (163)          │
  └───────────────┬──────────────────────────────────┬──────────────────┘
  ┌───────────────▼──────────────────────────────────▼──────────────────┐
- │ L2  Model API (157) ⇄ Tool calling (59)    Vector store API (29)     │ ← ports
+ │ L2  Model API (157) ⇄ Tool calling (58)    Vector store API (29)     │ ← ports
  └───────────────┬──────────────────────────────────┬──────────────────┘
  ┌───────────────▼──────────────────────────────────▼──────────────────┐
- │ L1  Commons & infrastructure (46): Document, observation, util, retry│
+ │ L1  Commons & infrastructure (45): Document, observation, util, retry│
  └─────────────────────────────────────────────────────────────────────┘
 ```
 (numbers = top-level classes that take part in at least one dependency)

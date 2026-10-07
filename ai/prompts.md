@@ -84,7 +84,7 @@ I mapped every class to your components and computed the metrics below
 (cohesion = mean intra-connectivity, coupling = mean inter-connectivity,
 TurboMQ, share of dependencies that stay inside components). The ACDC and
 k-means architectures of the same version have higher TurboMQ/k.
-<metrics table pasted here>
+<metrics table: see the top of ai/responses/P4_response.md>
 Explain the difference. Would you change your decomposition, and if so how,
 without losing its meaning for a developer?
 ```

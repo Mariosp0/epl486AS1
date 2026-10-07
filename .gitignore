@@ -4,11 +4,3 @@ logs_*.txt
 __pycache__/
 *.pyc
 logs/
-data/rsf/
-results/clusters/
-# TEMP: un-ignore after the JNode run completes
-data/noise/*.csv
-!data/noise/0.8.0.csv
-!data/noise/1.0.0-M1.csv
-!data/noise/2.0.0-M7.csv
-data/noise_p4/

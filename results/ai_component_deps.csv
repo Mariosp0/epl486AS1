@@ -1,0 +1,41 @@
+from,to,class_dependencies
+Model providers,"Model API (chat, embedding, image, audio, moderation)",516
+Vector store implementations,Vector store API & filter language,190
+Boot auto-configuration,Model providers,148
+ChatClient & Advisors,"Model API (chat, embedding, image, audio, moderation)",104
+Boot auto-configuration,"Model API (chat, embedding, image, audio, moderation)",90
+Model providers,Commons & infrastructure,80
+Vector store implementations,Commons & infrastructure,77
+Vector store implementations,"Model API (chat, embedding, image, audio, moderation)",77
+Model providers,Tool calling & tool search,69
+Boot auto-configuration,Vector store API & filter language,53
+Boot auto-configuration,MCP,51
+"Model API (chat, embedding, image, audio, moderation)",Commons & infrastructure,48
+Boot auto-configuration,Tool calling & tool search,41
+Tool calling & tool search,"Model API (chat, embedding, image, audio, moderation)",37
+Boot auto-configuration,Vector store implementations,35
+ChatClient & Advisors,Tool calling & tool search,35
+RAG & ETL,Commons & infrastructure,32
+Chat memory repositories,"Model API (chat, embedding, image, audio, moderation)",32
+ChatClient & Advisors,Commons & infrastructure,29
+Boot auto-configuration,Commons & infrastructure,27
+Dev services (Docker Compose / Testcontainers),Boot auto-configuration,20
+Boot auto-configuration,ChatClient & Advisors,19
+Tool calling & tool search,Commons & infrastructure,18
+Vector store API & filter language,Commons & infrastructure,18
+MCP,Tool calling & tool search,16
+MCP,Commons & infrastructure,16
+RAG & ETL,"Model API (chat, embedding, image, audio, moderation)",12
+RAG & ETL,ChatClient & Advisors,8
+Commons & infrastructure,"Model API (chat, embedding, image, audio, moderation)",8
+Boot auto-configuration,Chat memory repositories,8
+ChatClient & Advisors,Vector store API & filter language,8
+Vector store API & filter language,"Model API (chat, embedding, image, audio, moderation)",7
+Vector store implementations,ChatClient & Advisors,7
+Chat memory repositories,ChatClient & Advisors,6
+MCP,"Model API (chat, embedding, image, audio, moderation)",5
+Chat memory repositories,Commons & infrastructure,4
+RAG & ETL,Vector store API & filter language,4
+Tool calling & tool search,Vector store API & filter language,4
+Commons & infrastructure,Tool calling & tool search,4
+"Model API (chat, embedding, image, audio, moderation)",Tool calling & tool search,3
