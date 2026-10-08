@@ -54,20 +54,15 @@ def load_dependencies(version):
 
 
 def load_noise(version):
-    """Return (noise set, sig dict) at top-level granularity from JNode output.
+    """Return (noise set, sig dict, w dict) at top-level granularity from JNode.
 
     JNode writes ';'-separated rows: name;Noise;NoiseSuspect;SIG;w with decimal
     commas. A top-level class takes the maximum SIG of its class files and is
-    noise if any of its class files is flagged as noise.
-
-    Fallback: JNode flags a class when its min-max normalised SIG is
-    >= mean + 1 std. When SIG is concentrated near its maximum this limit can
-    exceed 1.0 and *no* class is flagged (happens for 0.8.0). In that case the
-    limit is clamped to the maximum SIG, i.e. the classes with the highest
-    significance are taken as noise. Returns (noise, sig, w, used_fallback).
+    noise if any of its class files is flagged as noise by JNode. JNode's own
+    flag is used as is: if JNode flags no class, the version has no noise
+    classes (A2 = A1 and A4 = A3 for that version).
     """
     noise, sig, w = set(), {}, {}
-    rows = []
     with open(os.path.join(DATA, "noise", f"{version}.csv")) as f:
         next(f)
         for line in f:
@@ -75,19 +70,35 @@ def load_noise(version):
             if len(parts) < 5:
                 continue
             name = top_level(parts[0])
-            s = float(parts[3].replace(",", "."))
-            rows.append((name, s, parts[1].strip() == "1"))
-            sig[name] = max(sig.get(name, 0.0), s)
+            if parts[1].strip() == "1":
+                noise.add(name)
+            sig[name] = max(sig.get(name, 0.0), float(parts[3].replace(",", ".")))
             w[name] = max(w.get(name, 0.0), float(parts[4].replace(",", ".")))
-    noise = {n for n, _, flag in rows if flag}
-    fallback = not noise
-    if fallback:
-        vals = [s for _, s, _ in rows]
-        mean = sum(vals) / len(vals)
-        std = (sum((v - mean) ** 2 for v in vals) / (len(vals) - 1)) ** 0.5
-        limit = min(mean + std, max(vals))
-        noise = {n for n, s, _ in rows if s >= limit}
-    return noise, sig, w, fallback
+    return noise, sig, w
+
+
+def populations(version):
+    """Class populations used by every architecture of one version.
+
+    nodes     - top-level classes that appear in the DependencyExtractor output
+    edges     - distinct top-level class dependencies (no self-dependencies)
+    connected - classes with at least one dependency; population of A1, A3,
+                PKG and AI (an isolated class carries no structural information)
+    noise     - JNode noise classes among the connected classes
+    nn_nodes  - connected classes minus noise; population of A2, A4,
+                PKG_nonoise and AI (no noise). Classes that lose all their
+                dependencies when the noise is removed are KEPT (they become
+                isolated classes of the reduced graph).
+    e_nn      - dependencies between nn_nodes
+    """
+    nodes, dep, raw = load_dependencies(version)
+    edges = set(dep)
+    connected = sorted({c for e in edges for c in e})
+    noise = load_noise(version)[0] & set(connected)
+    nn_nodes = sorted(set(connected) - noise)
+    e_nn = {(s, d) for s, d in edges if s not in noise and d not in noise}
+    return {"nodes": nodes, "raw": raw, "edges": edges, "connected": connected,
+            "noise": noise, "nn_nodes": nn_nodes, "e_nn": e_nn}
 
 
 def package(name):

@@ -90,8 +90,8 @@ def main():
     fig, axs = plt.subplots(1, 2, figsize=(9, 3.2))
     line(axs[0], x, [int(r["class_dependencies"]) for r in size], "A1", "dependencies")
     setup(axs[0], vs, "class dependencies", "Class-to-class dependencies")
-    dens = [int(r["class_dependencies"]) / int(r["classes"]) for r in size]
-    line(axs[1], x, dens, "A3", "deps / class")
+    dens = [int(r["class_dependencies"]) / int(r["connected_classes"]) for r in size]
+    line(axs[1], x, dens, "A3", "deps / connected class")
     setup(axs[1], vs, "dependencies per class", "Dependency density")
     for a in axs:
         a.set_ylim(0)

@@ -7,6 +7,9 @@ then computes the same metrics as for ACDC/k-means (cohesion, coupling, MQ)
 and the component dependency matrix. The MoJoFM comparison with the other
 architectures is done in scripts/lecture_metrics.py.
 
+Populations as for the other architectures (common.populations): "AI (full)"
+= connected classes, "AI (no noise)" = connected classes minus the noise classes.
+
 Outputs: results/ai_metrics.csv, results/ai_component_deps.csv,
          results/ai_components.csv, results/clusters/<v>_AI.rsf
 """
@@ -16,8 +19,8 @@ import re
 import sys
 from collections import Counter
 
-from common import (PREFIX, PROJECT_DIR, RESULTS, load_dependencies, load_noise,
-                    package, versions, write_csv)
+from common import (PREFIX, PROJECT_DIR, RESULTS, package, populations,
+                    versions, write_csv)
 from metrics import evaluate
 
 PFX = PREFIX
@@ -37,9 +40,8 @@ def main():
     cfg = json.load(open(spec))
     v = cfg.get("version", versions()[-1])
     rules = [(name, re.compile(rx)) for name, rx in cfg["rules"]]
-    nodes, dep, _ = load_dependencies(v)
-    edges = set(dep)
-    connected = sorted({c for e in edges for c in e})
+    pop = populations(v)
+    edges, connected = pop["edges"], pop["connected"]
 
     by_class = cfg.get("match") == "class"  # rules over "pkg.Class" instead of "pkg"
 
@@ -57,9 +59,9 @@ def main():
         for c in sorted(ai, key=lambda x: (ai[x], x)):
             f.write(f"contain {ai[c].replace(' ', '_')} {c}\n")
 
-    noise, _, _, _ = load_noise(v)
-    e_nn = {(s, d) for s, d in edges if s not in noise and d not in noise}
-    ai_nn = {c: k for c, k in ai.items() if c not in noise and any(c in e for e in e_nn)}
+    # same populations as A2/A4: connected classes minus the JNode noise classes
+    e_nn = pop["e_nn"]
+    ai_nn = {c: ai[c] for c in pop["nn_nodes"]}
 
     rows = []
     for label, cl, graph in (("AI (full)", ai, edges), ("AI (no noise)", ai_nn, e_nn)):

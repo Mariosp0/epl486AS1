@@ -1,15 +1,15 @@
 component,classes
-"Collection utilities, views & ordering",85
-"Concurrency (futures, services, executors)",78
-"Multi-collections (Multimap, Multiset, BiMap, Table)",61
-Graph library,52
-Immutable collections,48
-Base utilities,47
-Primitives & math,37
-I/O,34
-Hashing,31
-"Escaping, networking & public suffix",21
-Caching,19
-Ranges & discrete domains,15
-Reflection,13
-Event bus,8
+Collect.Utilities,80
+Collect.Types,77
+Concurrent.Futures,55
+Collect.Immutable,52
+Graph,52
+Base,47
+PrimitivesMath,37
+IO,34
+Hash,31
+Concurrent.ServicesSync,23
+EscapeNet,21
+Cache,19
+Reflect,13
+EventBus,8

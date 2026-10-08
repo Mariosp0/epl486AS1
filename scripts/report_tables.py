@@ -43,23 +43,24 @@ def main():
         mod = [v["modules_with_code"]] if "modules_with_code" in v else []
         rows.append([v["version"], tags[v["version"]]["date"]] + mod +
                     [v["packages"], v["class_files"], top, growth,
-                     s["class_dependencies"],
-                     f"{int(s['class_dependencies']) / int(s['classes']):.2f}"])
+                     s["classes"], s["connected_classes"], s["class_dependencies"],
+                     f"{int(s['class_dependencies']) / int(s['connected_classes']):.2f}"])
     t["TABLE_SIZE"] = table(["Version", "Date"] + (["Modules"] if "modules_with_code" in vers[0] else [])
-                            + ["Packages", "Class files", "Top-level classes", "Δ classes",
-                               "Dependencies", "Deps/class"], rows)
+                            + ["Packages", "Class files", "Top-level classes (jar)", "Δ classes",
+                               "In dependency data", "Connected", "Dependencies",
+                               "Deps / connected class"], rows)
 
     rows = []
     for v in vs:
         s = size[v]
         cmp_ = [nc[v]["jnode3_noise"], nc[v]["jnode4_noise"], nc[v]["jaccard"]] if nc else []
         rows.append([v, s["connected_classes"], s["isolated_classes"], s["noise_classes"],
-                     s["noise_pct"] + "%"] + cmp_ + [
-                     "yes" if s["noise_fallback"] == "True" else ""])
+                     s["noise_pct"] + "%", s["classes_without_noise"],
+                     s["isolated_after_noise_removal"]] + cmp_)
     t["TABLE_NOISE"] = table(["Version", "Connected classes", "Isolated", "Noise (top-level)",
-                              "Noise %"] +
-                             (["JNode-3 noise files", "JNode-4 noise files", "Jaccard 3 vs 4"] if nc else [])
-                             + ["Fallback"], rows)
+                              "Noise %", "Connected − noise", "Isolated after removal"] +
+                             (["JNode-3 noise files", "JNode-4 noise files", "Jaccard 3 vs 4"] if nc else []),
+                             rows)
 
     def arch_table(key, fmt="{}"):
         rows = []
@@ -104,6 +105,9 @@ def main():
     t["TABLE_AI_COMP"] = table(["Component", "Classes"],
                                [[r["component"], r["classes"]] for r in
                                 read(os.path.join(RESULTS, "ai_components.csv"))])
+    t["TABLE_AI_DEPS"] = table(["From", "To", "Class dependencies"],
+                               [[r["from"], r["to"], r["class_dependencies"]] for r in
+                                read(os.path.join(RESULTS, "ai_component_deps.csv"))[:15]])
 
     rows = [[r["graph"], r["patterns"], r["max_cluster_size"], r["clusters"], r["max_cluster"],
              r["cohesion"], r["coupling"], r["mq"]]
@@ -128,14 +132,18 @@ def main():
 
     rows = opt("mojofm.csv")
     if rows:
-        t["TABLE_MOJO"] = table(["Version", "A1 → PKG", "A2 → PKG", "A3 → PKG", "A4 → PKG"],
+        t["TABLE_MOJO"] = table(["Version", "A1 → PKG", "A2 → PKG", "A3 → PKG", "A4 → PKG",
+                                 "A2 → PKG (linked)", "A4 → PKG (linked)"],
                                 [[r["version"], r["A1_vs_PKG"], r["A2_vs_PKG"], r["A3_vs_PKG"],
-                                  r["A4_vs_PKG"]] for r in rows])
+                                  r["A4_vs_PKG"], r["A2_vs_PKG_linked"], r["A4_vs_PKG_linked"]]
+                                 for r in rows])
         last = rows[-1]
         t["TABLE_MOJO_AI"] = table(["MoJoFM (%) to the AI architecture", "A1", "A2", "A3", "A4",
                                     "Packages"],
                                    [[latest] + [last[f"{a}_vs_AI"] for a in
-                                                ("A1", "A2", "A3", "A4", "PKG")]])
+                                                ("A1", "A2", "A3", "A4", "PKG")],
+                                    ["Classes compared"] + [last[f"{a}_vs_AI_classes"] for a in
+                                                            ("A1", "A2", "A3", "A4", "PKG")]])
     rows = opt("mojofm_stability.csv")
     if rows:
         t["TABLE_MOJO_STAB"] = table(["Version (vs previous)", "A1", "A2", "A3", "A4"],
@@ -170,10 +178,21 @@ def main():
                                     [[r["from"], r["to"], r["days"], r["commits"], r["authors"],
                                       r["commits_per_month"]] for r in rows])
 
+    # Appendix: the literal prompts, taken from ai/prompts.md (P1-P4 sections)
+    pm = os.path.join(PROJECT_DIR, "ai", "prompts.md")
+    if os.path.exists(pm):
+        parts = re.split(r"^## ", open(pm).read(), flags=re.M)
+        t["AI_PROMPTS"] = "\n\n".join("**" + sec.split("\n", 1)[0].strip() + "**\n\n" +
+                                       re.search(r"```text\n.*?```", sec, re.S).group(0)
+                                       for sec in parts if re.match(r"P\d", sec))
+
     src = open(os.path.join(PROJECT_DIR, "report", "report_src.md")).read()
-    missing = set(re.findall(r"\{\{(\w+)\}\}", src)) - set(t)
+    used = set(re.findall(r"\{\{(\w+)\}\}", src))
+    missing = used - set(t)
     if missing:
         raise SystemExit(f"unknown placeholders: {missing}")
+    if set(t) - used:
+        print("note: generated but not used in report_src.md:", sorted(set(t) - used))
     out = re.sub(r"\{\{(\w+)\}\}", lambda m: t[m.group(1)], src)
     with open(os.path.join(PROJECT_DIR, "report", "report.md"), "w") as f:
         f.write(out)

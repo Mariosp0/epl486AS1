@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""Compare the noise classes of the original JNode (3-decimal CR model,
-data/noise_jnode3/) with the precision-fixed JNode (4 decimals, data/noise/).
+"""Compare the noise classes of JNode with the original 3-decimal rounding of
+the CR model (tools/JNode-fixed-3dec.jar -> data/noise_jnode3/) with the
+4-decimal variant used for the results (tools/JNode-fixed.jar -> data/noise/).
+Both jars contain the same graph fixes (tools/jnode-patch/README.md).
 
 JNode rounds CR-model weights to 3 decimals; with more than 2,000 class files
 the initial weight 1/n rounds to 0, every SIG becomes 0 and no class is

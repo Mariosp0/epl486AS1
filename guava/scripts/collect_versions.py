@@ -24,9 +24,10 @@ CACHE = os.path.join(HERE, "..", "data", "cache", "guava")
 REPO = "https://repo1.maven.org/maven2/com/google/guava/guava"
 
 # Sparse selection: every second major release 10.0 ... 32.0 plus the latest
-# feature release 33.7.0 (Aug 2026). Rationale in guava/docs/phase1_project_selection.md.
+# release at the time of the analysis, 33.7.2 (Sep 2026).
+# Rationale in guava/docs/phase1_project_selection.md.
 VERSIONS = ["10.0", "12.0", "14.0", "16.0", "18.0", "20.0", "22.0", "24.0",
-            "26.0", "28.0", "30.0", "32.0.0", "33.7.0"]
+            "26.0", "28.0", "30.0", "32.0.0", "33.7.2"]
 
 
 def maven_version(v):

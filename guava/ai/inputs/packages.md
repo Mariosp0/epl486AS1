@@ -1,4 +1,4 @@
-# Guava 33.7.0 - packages (prefix com.google. omitted)
+# Guava 33.7.2 - packages (prefix com.google. omitted)
 
 package | #classes | sample classes
 ---|---|---

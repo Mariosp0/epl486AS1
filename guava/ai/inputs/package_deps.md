@@ -1,4 +1,4 @@
-# Guava 33.7.0 - package dependencies (from -> to : #class deps)
+# Guava 33.7.2 - package dependencies (from -> to : #class deps)
 
 common.collect -> common.base : 184
 common.util.concurrent -> common.base : 67

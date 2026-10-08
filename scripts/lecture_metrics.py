@@ -7,15 +7,14 @@
    The analysed system has no expert ("ground-truth") architecture, so we use
    (a) the developers' package structure for every version and (b) the AI
    architecture (Phase 4) for the latest version as reference architectures.
+   Both partitions are restricted to their common classes before MoJo runs.
    -> results/mojofm.csv
-2. MoJoFM between consecutive versions (architectural change over time)
-   -> results/mojofm_stability.csv
+2. MoJoFM between consecutive versions (architectural change over time),
+   on the classes present in both versions -> results/mojofm_stability.csv
 3. Omnipresent classes with the Bunch rule (L6-7, slides 39-41: in-degree >
    3 x average in-degree) compared with JNode (Constantinou et al. 2015), and
    the effect of removing each set on ACDC, as in slide 49 ("System" vs
    "Noise" vs "Bunch") -> results/bunch_noise.csv
-5. Dependencies added/removed between versions (L1-2, law of increasing
-   complexity, Eclipse example) -> results/dependency_changes.csv
 4. Architectural smells and their evolution (L5, slides 28-34; Fontana et al.
    2016, Sas et al. 2019), normalised by #classes or #packages:
    * cyclic dependency  - packages (and classes) that take part in a
@@ -28,6 +27,8 @@
      package sizes (the lecture asks for a size threshold without fixing it;
      size is measured in top-level classes because we analyse bytecode).
    -> results/smells.csv
+5. Dependencies added/removed between versions (L1-2, law of increasing
+   complexity, Eclipse example) -> results/dependency_changes.csv
 """
 import os
 import statistics as st
@@ -38,19 +39,42 @@ from concurrent.futures import ThreadPoolExecutor
 
 import networkx as nx
 
-from common import (RESULTS, ROOT, load_dependencies, load_noise, package,
+from common import (RESULTS, ROOT, load_dependencies, package, populations,
                     versions, write_csv)
 from metrics import evaluate
-from recover import run_acdc, write_rsf
+from recover import complete, run_acdc, write_rsf
 
 MOJO = os.path.join(ROOT, "tools", "mojo.jar")
 CDIR = os.path.join(RESULTS, "clusters")
 
 
-def mojofm(a, b):
-    """MoJoFM(A -> B) in % for two 'contain cluster entity' RSF files."""
-    out = subprocess.run(["java", "-jar", MOJO, a, b, "-fm"], capture_output=True, text=True)
-    return round(float(out.stdout.strip().splitlines()[-1]), 2)
+def read_rsf(path):
+    with open(path) as f:
+        return {cls: c for _, c, cls in (line.split() for line in f if line.strip())}
+
+
+def mojofm(a, b, only=None):
+    """MoJoFM(A -> B) in % for two 'contain cluster entity' RSF files.
+
+    MoJo assumes that both partitions contain the same entities. The two
+    partitions are therefore first restricted to their COMMON classes (e.g.
+    the classes present in both versions, or in both populations); clusters
+    left empty disappear. `only` restricts the comparison further to a given
+    set of classes. Returns (MoJoFM, number of common classes).
+    """
+    pa, pb = read_rsf(a), read_rsf(b)
+    common = sorted(set(pa) & set(pb) & (set(only) if only is not None else set(pa)))
+    with tempfile.TemporaryDirectory() as tmp:
+        files = []
+        for name, part in (("a.rsf", pa), ("b.rsf", pb)):
+            path = os.path.join(tmp, name)
+            with open(path, "w") as f:
+                for cls in common:
+                    f.write(f"contain {part[cls]} {cls}\n")
+            files.append(path)
+        out = subprocess.run(["java", "-jar", MOJO, *files, "-fm"],
+                             capture_output=True, text=True, check=True)
+    return round(float(out.stdout.strip().splitlines()[-1]), 2), len(common)
 
 
 def cpath(v, arch):
@@ -108,11 +132,19 @@ def main():
     for prev, cur in zip(vs, vs[1:]):
         for a in ("A1", "A2", "A3", "A4"):
             jobs.append(("stab", cur, a, prev))
+    # A2/A4 vs packages on the classes that still have a dependency after the
+    # noise removal (without the classes that the removal leaves isolated)
+    linked = {v: {c for e in populations(v)["e_nn"] for c in e} for v in vs}
+    for v in vs:
+        for a in ("A2", "A4"):
+            jobs.append(("linked", v, a, "PKG_nonoise"))
 
     def run(job):
         kind, v, a, ref = job
         if kind == "mojo":
             return job, mojofm(cpath(v, a), cpath(v, ref))
+        if kind == "linked":
+            return job, mojofm(cpath(v, a), cpath(v, ref), linked[v])
         return job, mojofm(cpath(v, a), cpath(ref, a))
 
     with ThreadPoolExecutor(os.cpu_count() or 2) as ex:
@@ -121,31 +153,36 @@ def main():
     for v in vs:
         row = {"version": v}
         for a in ("A1", "A2", "A3", "A4"):
-            row[f"{a}_vs_PKG"] = res[("mojo", v, a, "PKG_nonoise" if a in ("A2", "A4") else "PKG")]
+            row[f"{a}_vs_PKG"] = res[("mojo", v, a, "PKG_nonoise" if a in ("A2", "A4") else "PKG")][0]
+        for a in ("A2", "A4"):
+            row[f"{a}_vs_PKG_linked"] = res[("linked", v, a, "PKG_nonoise")][0]
         if v == latest:
-            row["AI_vs_PKG"] = res[("mojo", v, "AI", "PKG")]
+            row["AI_vs_PKG"] = res[("mojo", v, "AI", "PKG")][0]
             for a in ("A1", "A2", "A3", "A4", "PKG"):
-                row[f"{a}_vs_AI"] = res[("mojo", v, a, "AI")]
+                row[f"{a}_vs_AI"], row[f"{a}_vs_AI_classes"] = res[("mojo", v, a, "AI")]
         mojo_rows.append(row)
     for prev, cur in zip(vs, vs[1:]):
-        stab_rows.append({"from": prev, "to": cur,
-                          **{a: res[("stab", cur, a, prev)] for a in ("A1", "A2", "A3", "A4")}})
+        r = {"from": prev, "to": cur}
+        for a in ("A1", "A2", "A3", "A4"):
+            r[a], r[f"{a}_common_classes"] = res[("stab", cur, a, prev)]
+        stab_rows.append(r)
 
     tmp = tempfile.mkdtemp()
     for v in vs:
-        nodes, dep, _ = load_dependencies(v)
-        edges = set(dep)
-        conn = {c for e in edges for c in e}
-        jnode, _, _, _ = load_noise(v)
-        jnode &= conn
+        pop = populations(v)
+        edges, connected = pop["edges"], pop["connected"]
+        conn = set(connected)
+        jnode = pop["noise"]
         fin = Counter(d for _, d in edges)
         avg = sum(fin[c] for c in conn) / len(conn)
         bunch = {c for c in conn if fin[c] > 3 * avg}
+        # same treatment as A2: population = connected - Bunch noise, classes
+        # left without dependencies become singleton clusters
         e_b = {(s, d) for s, d in edges if s not in bunch and d not in bunch}
         rsf = os.path.join(tmp, f"{v}_bunch.rsf")
         write_rsf(rsf, e_b)
         out = os.path.join(CDIR, f"{v}_A2bunch.rsf")
-        cl = run_acdc(rsf, out)
+        cl = complete(run_acdc(rsf, out), sorted(conn - bunch), out)
         m = evaluate(cl, e_b)
         union = jnode | bunch
         bunch_rows.append({
@@ -153,9 +190,9 @@ def main():
             "bunch_noise": len(bunch), "jnode_noise": len(jnode), "common": len(jnode & bunch),
             "jaccard": round(len(jnode & bunch) / len(union), 3) if union else 1.0,
             "mq_A1_system": None, "mq_A2_jnode": None, "mq_A2_bunch": m["mq"],
-            "mojofm_A1_system": res[("mojo", v, "A1", "PKG")],
-            "mojofm_A2_jnode": res[("mojo", v, "A2", "PKG_nonoise")],
-            "mojofm_A2_bunch": mojofm(out, cpath(v, "PKG")),
+            "mojofm_A1_system": res[("mojo", v, "A1", "PKG")][0],
+            "mojofm_A2_jnode": res[("mojo", v, "A2", "PKG_nonoise")][0],
+            "mojofm_A2_bunch": mojofm(out, cpath(v, "PKG"))[0],
             "bunch_classes": " ".join(sorted(c.rsplit(".", 1)[1] for c in bunch)),
         })
         sm = {"version": v}

@@ -7,6 +7,11 @@ For every version:
     (one "depends A B" line per distinct dependency A -> B),
   * A1/A2: runs ACDC (tools/acdc.jar) with and without the noise classes,
   * A3/A4: runs k-means (scikit-learn) with and without the noise classes,
+  * populations (common.populations): A1/A3/PKG cluster the connected
+    classes; A2/A4/PKG_nonoise the connected classes minus the noise classes
+    (classes left without dependencies by the noise removal are kept; ACDC
+    only sees classes that occur in a dependency, so each of them becomes a
+    singleton cluster of A2),
   * PKG : the developers' package decomposition, used as a reference,
   * evaluates every recovered architecture with scripts/metrics.py
     (cohesion, coupling, MQ).
@@ -28,8 +33,8 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import normalize
 from kneed import KneeLocator
 
-from common import (DATA, RESULTS, ROOT, load_dependencies, load_noise,
-                    package, versions, write_csv)
+from common import (DATA, RESULTS, ROOT, load_noise, package, populations,
+                    versions, write_csv)
 from metrics import evaluate
 
 ACDC = os.path.join(ROOT, "tools", "acdc.jar")
@@ -122,21 +127,37 @@ def run_kmeans(nodes, edges, version, arch, ksel_rows):
         inertia.append(km.inertia_)
         ksel_rows.append({"version": version, "arch": arch, "k": k,
                           "inertia": round(float(km.inertia_), 3)})
-    k = KneeLocator(ks, inertia, curve="convex", direction="decreasing").knee
+    k, rule = KneeLocator(ks, inertia, curve="convex", direction="decreasing").knee, "kneedle"
+    if k is None:
+        # Kneedle found no knee: take the candidate farthest from the straight
+        # line between the first and the last point of the inertia curve.
+        y = np.array(inertia)
+        xs = np.array(ks, dtype=float)
+        chord = y[0] + (y[-1] - y[0]) * (xs - xs[0]) / (xs[-1] - xs[0])
+        k, rule = int(xs[np.argmax(chord - y)]), "max-distance"
     labels = KMeans(n_clusters=k, n_init=10, random_state=SEED).fit_predict(x)
-    return {n: f"km{l}" for n, l in zip(nodes, labels)}, k
+    return {n: f"km{l}" for n, l in zip(nodes, labels)}, k, rule
+
+
+def complete(clusters, population, path):
+    """Put every class of the population that ACDC did not see (no dependency
+    in the input graph) into its own singleton cluster and rewrite the RSF."""
+    missing = [c for c in population if c not in clusters]
+    for c in missing:
+        clusters[c] = f"{c}.single"
+    if missing:
+        write_clusters(path, clusters)
+    return clusters
 
 
 def analyse(v):
     """Recover and evaluate all architectures of one version."""
     size_rows, metric_rows, ksel_rows, noise_rows = [], [], [], []
-    nodes, dep, raw = load_dependencies(v)
-    noise, sig, _, fallback = load_noise(v)
-    edges = set(dep)
-    connected = sorted({c for e in edges for c in e})
-    noise &= set(connected)
-    e_nn = {(s, d) for s, d in edges if s not in noise and d not in noise}
-    nn_nodes = sorted({c for e in e_nn for c in e})
+    pop = populations(v)
+    nodes, raw, edges, connected = pop["nodes"], pop["raw"], pop["edges"], pop["connected"]
+    noise, nn_nodes, e_nn = pop["noise"], pop["nn_nodes"], pop["e_nn"]
+    sig = load_noise(v)[1]
+    isolated_nn = len(set(nn_nodes) - {c for e in e_nn for c in e})
 
     size_rows.append({
         "version": v,
@@ -148,8 +169,8 @@ def analyse(v):
         "isolated_classes": len(nodes) - len(connected),
         "noise_classes": len(noise),
         "noise_pct": round(100 * len(noise) / len(connected), 2),
-        "noise_fallback": fallback,
         "classes_without_noise": len(nn_nodes),
+        "isolated_after_noise_removal": isolated_nn,
         "dependencies_without_noise": len(e_nn),
     })
     for c in sorted(noise, key=lambda c: -sig.get(c, 0)):
@@ -161,11 +182,14 @@ def analyse(v):
     write_rsf(nn_rsf, e_nn)
     cdir = os.path.join(RESULTS, "clusters")
     res = {
-        "A1": run_acdc(full_rsf, os.path.join(cdir, f"{v}_A1.rsf")),
-        "A2": run_acdc(nn_rsf, os.path.join(cdir, f"{v}_A2.rsf")),
+        "A1": complete(run_acdc(full_rsf, os.path.join(cdir, f"{v}_A1.rsf")),
+                       connected, os.path.join(cdir, f"{v}_A1.rsf")),
+        "A2": complete(run_acdc(nn_rsf, os.path.join(cdir, f"{v}_A2.rsf")),
+                       nn_nodes, os.path.join(cdir, f"{v}_A2.rsf")),
     }
-    res["A3"], k3 = run_kmeans(connected, edges, v, "A3", ksel_rows)
-    res["A4"], k4 = run_kmeans(nn_nodes, e_nn, v, "A4", ksel_rows)
+    res["A3"], k3, rule3 = run_kmeans(connected, edges, v, "A3", ksel_rows)
+    res["A4"], k4, rule4 = run_kmeans(nn_nodes, e_nn, v, "A4", ksel_rows)
+    k_rule = {"A3": rule3, "A4": rule4}
     res["PKG"] = {c: package(c) for c in connected}
     res["PKG_nonoise"] = {c: package(c) for c in nn_nodes}
     for a in ("A3", "A4", "PKG", "PKG_nonoise"):
@@ -174,6 +198,7 @@ def analyse(v):
         graph = e_nn if a in ("A2", "A4", "PKG_nonoise") else edges
         row = {"version": v, "arch": a}
         row.update(evaluate(cl, graph))
+        row["k_rule"] = k_rule.get(a, "")
         metric_rows.append(row)
     print(v, {m["arch"]: m["mq"] for m in metric_rows},
           f"k3={k3} k4={k4} noise={len(noise)}", flush=True)

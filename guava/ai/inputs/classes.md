@@ -1,4 +1,4 @@
-# Guava 33.7.0 - all top-level classes per package (prefix com.google. omitted)
+# Guava 33.7.2 - all top-level classes per package (prefix com.google. omitted)
 
 ## common.base (48)
 Absent, AbstractIterator, Ascii, CaseFormat, CharMatcher, Charsets, CommonMatcher, CommonPattern, Converter, Defaults, Enums, Equivalence, ExtraObjectsMethodsForWeb, FinalizablePhantomReference, FinalizableReference, FinalizableReferenceQueue, FinalizableSoftReference, FinalizableWeakReference, Function, FunctionalEquivalence, Functions, Internal, JdkPattern, Joiner, MoreObjects, NullnessCasts, Objects, Optional, PairwiseEquivalence, PatternCompiler, Platform, Preconditions, Predicate, Predicates, Present, SmallCharMatcher, SneakyThrows, Splitter, StandardSystemProperty, Stopwatch, Strings, Supplier, Suppliers, Throwables, Ticker, Utf8, Verify, VerifyException

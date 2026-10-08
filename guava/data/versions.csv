@@ -11,4 +11,4 @@ version,maven_version,date,packages,class_files,top_level_classes,jar
 28.0,28.0-jre,2019-06-11,18,1932,554,data/workspace/28.0/bin/guava-28.0.jar
 30.0,30.0-jre,2020-10-16,18,2010,569,data/workspace/30.0/bin/guava-30.0.jar
 32.0.0,32.0.0-jre,2023-05-26,18,1997,607,data/workspace/32.0.0/bin/guava-32.0.0.jar
-33.7.0,33.7.0-jre,2026-08-17,18,1948,594,data/workspace/33.7.0/bin/guava-33.7.0.jar
+33.7.2,33.7.2-jre,2026-09-29,18,1948,594,data/workspace/33.7.2/bin/guava-33.7.2.jar

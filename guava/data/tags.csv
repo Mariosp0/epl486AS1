@@ -105,6 +105,6 @@ tag,date,kind,analysed
 33.4.8,2025-04-14,patch,no
 33.5.0,2025-09-17,minor,no
 33.6.0,2026-04-14,minor,no
-33.7.0,2026-08-17,minor,yes
+33.7.0,2026-08-17,minor,no
 33.7.1,2026-08-17,patch,no
-33.7.2,2026-09-29,patch,no
+33.7.2,2026-09-29,patch,yes

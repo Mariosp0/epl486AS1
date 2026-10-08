@@ -1,21 +1,67 @@
 {
-  "version": "33.7.0",
+  "version": "33.7.2",
   "match": "class",
-  "source": "guava/ai/responses/P3_response.md (rules returned by the AI tool for prompt P3); matched against 'package.Class' with the com.google. prefix removed",
+  "source": "guava/ai/responses/P3_response.md (rules returned by the AI tool for prompt P3, copied unchanged); matched with fullmatch against 'package.Class' with the com.google. prefix removed, first match wins",
   "rules": [
-    ["Graph library", "^common\\.graph\\..*"],
-    ["Caching", "^common\\.cache\\..*"],
-    ["Concurrency (futures, services, executors)", "^common\\.util\\.concurrent\\..*"],
-    ["Event bus", "^common\\.eventbus\\..*"],
-    ["Reflection", "^common\\.reflect\\..*"],
-    ["I/O", "^common\\.io\\..*"],
-    ["Hashing", "^common\\.hash\\..*"],
-    ["Escaping, networking & public suffix", "^common\\.(escape|html|xml|net)\\..*|^thirdparty\\..*"],
-    ["Primitives & math", "^common\\.(primitives|math)\\..*"],
-    ["Ranges & discrete domains", "^common\\.collect\\.(Range|RangeMap|RangeSet|AbstractRangeSet|TreeRangeMap|TreeRangeSet|ImmutableRangeMap|ImmutableRangeSet|Cut|BoundType|DiscreteDomain|ContiguousSet|RegularContiguousSet|EmptyContiguousSet|GeneralRange)$"],
-    ["Immutable collections", "^common\\.collect\\.(Immutable|Regular|Singleton|Empty|JdkBacked|Dense|Sparse|Descending|Indexed)\\w*$|^common\\.collect\\.BaseImmutableMultimap$"],
-    ["Multi-collections (Multimap, Multiset, BiMap, Table)", "^common\\.collect\\.\\w*(Multimap|Multiset|BiMap|Table)\\w*$"],
-    ["Collection utilities, views & ordering", "^common\\.collect\\..*"],
-    ["Base utilities", ".*"]
+    [
+      "Collect.Immutable",
+      "common\\.collect\\.(\\w*Immutable\\w*|Regular\\w*|Singleton\\w*|Empty\\w*|ContiguousSet)"
+    ],
+    [
+      "Collect.Types",
+      "common\\.collect\\.(\\w*(Multimap|Multiset|BiMap|Table|Range)\\w*|Cut|BoundType|DiscreteDomain|Count|ClassToInstanceMap|MutableClassToInstanceMap|EvictingQueue|MinMaxPriorityQueue)"
+    ],
+    [
+      "Collect.Utilities",
+      "common\\.collect\\..*"
+    ],
+    [
+      "Concurrent.ServicesSync",
+      "common\\.util\\.concurrent\\.(Service|AbstractService|AbstractIdleService|AbstractExecutionThreadService|AbstractScheduledService|ServiceManager|ServiceManagerBridge|ListenerCallQueue|Monitor|RateLimiter|SmoothRateLimiter|Striped|CycleDetectingLockFactory|AtomicDouble|AtomicDoubleArray|AtomicLongMap|TimeLimiter|SimpleTimeLimiter|FakeTimeLimiter|Uninterruptibles|ForwardingLock|ForwardingCondition|OverflowAvoidingLockSupport)"
+    ],
+    [
+      "Concurrent.Futures",
+      "common\\.util\\.concurrent\\..*"
+    ],
+    [
+      "Cache",
+      "common\\.cache\\..*"
+    ],
+    [
+      "EventBus",
+      "common\\.eventbus\\..*"
+    ],
+    [
+      "Graph",
+      "common\\.graph\\..*"
+    ],
+    [
+      "Hash",
+      "common\\.hash\\..*"
+    ],
+    [
+      "IO",
+      "common\\.io\\..*"
+    ],
+    [
+      "Reflect",
+      "common\\.reflect\\..*"
+    ],
+    [
+      "EscapeNet",
+      "common\\.(escape|html|xml|net)\\..*|thirdparty\\.publicsuffix\\..*"
+    ],
+    [
+      "PrimitivesMath",
+      "common\\.(primitives|math)\\..*"
+    ],
+    [
+      "Base",
+      "common\\.base(\\.internal)?\\..*"
+    ],
+    [
+      "Base",
+      ".*"
+    ]
   ]
 }
